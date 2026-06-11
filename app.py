@@ -513,6 +513,8 @@ if "query_override" not in st.session_state:
     st.session_state.query_override = ""
 if "param_values" not in st.session_state:
     st.session_state.param_values = {}
+if "shared_state" not in st.session_state:
+    st.session_state.shared_state = {}
 
 # Load default prompts into session state if not exist
 for s_key, s_val in SCENARIOS.items():
