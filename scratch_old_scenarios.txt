@@ -1,0 +1,405 @@
+# 1. SCENARIOS DEFINITIONS
+# --------------------------------------------------------------------------
+
+SCENARIOS = {
+    "doctor": {
+        "title": "Doctor Appointment Booking Assistant",
+        "icon": "🏥",
+        "desc": "Sequential workflow to check symptoms, find nearby specialists, verify slot availability, handle consultation fees, and schedule reminders.",
+        "default_query": "I have a fever and need to see a doctor tomorrow morning near my location.",
+        "agents": [
+            {
+                "name": "Doctor Search Agent",
+                "role": "Search nearby clinics and specialist databases.",
+                "tools": ["SearchClinicsAPI", "MatchSymptoms", "CalculateProximity"],
+                "default_prompt": "Role: Doctor Search Agent\nContext: System helping patient find doctors.\nTask: Filter registered doctors specializing in patient symptoms within a 10km radius.\nConstraints: Output list of matching names and distances only."
+            },
+            {
+                "name": "Appointment Booking Agent",
+                "role": "Verify schedules and lock appointment slots.",
+                "tools": ["GetAvailabilityList", "ReserveSlotDB"],
+                "default_prompt": "Role: Booking Coordinator\nContext: Booking schedule system.\nTask: Compare patient's requested time (e.g. tomorrow morning) against clinic schedule tables.\nConstraints: Select the earliest available slot. Do not book double appointments."
+            },
+            {
+                "name": "Payment Agent",
+                "role": "Verify fee requirements and process transactions.",
+                "tools": ["CheckConsultationFee", "ValidateGatewayStatus"],
+                "default_prompt": "Role: Billing & Payment Validator\nContext: Checking consultation costs.\nTask: Identify fee rates, check if advance deposit is required, and simulate secure gateway validation.\nConstraints: Flag errors if patient budget is insufficient."
+            },
+            {
+                "name": "Reminder Agent",
+                "role": "Setup push alerts and email notifications.",
+                "tools": ["ScheduleSMSGate", "CreateCalendarInvite"],
+                "default_prompt": "Role: Notification Dispatcher\nContext: Appointment confirmation.\nTask: Generate automated push notifications and email calendar attachments to avoid no-shows.\nConstraints: Set trigger 1 hour before scheduled time."
+            }
+        ],
+        "parameters": [
+            {"id": "illness", "label": "Patient Symptoms", "type": "select", "options": ["Fever", "Toothache", "Fracture (Emergency)"], "default": "Fever"},
+            {"id": "time", "label": "Preferred Time", "type": "select", "options": ["Morning (09:00 - 12:00)", "Afternoon (13:00 - 17:00)"], "default": "Morning (09:00 - 12:00)"},
+            {"id": "budget", "label": "Max Consultation Budget (₹)", "type": "slider", "options": [200, 1500, 600], "default": 600}
+        ]
+    },
+    "library": {
+        "title": "Library Book Borrowing Assistant",
+        "icon": "📚",
+        "desc": "Orchestrates catalog lookup, copies checking, student reservation permissions, and pickup notification alerts.",
+        "default_query": "I need the book 'Artificial Intelligence' for my assignment.",
+        "agents": [
+            {
+                "name": "Book Search Agent",
+                "role": "Verify if the book title exists in library database.",
+                "tools": ["QueryCatalogDB", "CheckISBN"],
+                "default_prompt": "Role: Catalog Search Specialist\nContext: Access to library index.\nTask: Search index tables for the requested book title.\nConstraints: Return exact matches or suggest close titles if not found."
+            },
+            {
+                "name": "Availability Agent",
+                "role": "Check physical copies stock status.",
+                "tools": ["CheckShelfStock", "GetReservationsCount"],
+                "default_prompt": "Role: Inventory Inspector\nContext: Physical stock room tracking.\nTask: Query total shelf inventory and subtract active checkouts to check real-time copy count.\nConstraints: If stock is 0, report waitlist count."
+            },
+            {
+                "name": "Reservation Agent",
+                "role": "Reserve book copies for specific student IDs.",
+                "tools": ["HoldCopyDB", "CheckUserBorrowLimit"],
+                "default_prompt": "Role: Reservation Coordinator\nContext: Placing temporary holds on books.\nTask: Lock a copy under the student's ID and mark it reserved for 48 hours.\nConstraints: Verify student limit (max 3 books)."
+            },
+            {
+                "name": "Notification Agent",
+                "role": "Send reservation confirmation and pickup codes.",
+                "tools": ["DispatchEmail", "GenerateBarcode"],
+                "default_prompt": "Role: Notification Dispatcher\nContext: Book hold confirmation.\nTask: Email pickup slip and temporary shelf code to the student.\nConstraints: Include warning that holds expire in 48 hours."
+            }
+        ],
+        "parameters": [
+            {"id": "book_title", "label": "Book Title", "type": "select", "options": ["Artificial Intelligence", "Advanced Python Coding", "Organic Chemistry"], "default": "Artificial Intelligence"},
+            {"id": "in_stock", "label": "Copy Available on Shelf", "type": "checkbox", "default": True},
+            {"id": "borrow_limit", "label": "Student Active Borrows", "type": "slider", "options": [0, 5, 1], "default": 1}
+        ]
+    },
+    "flight": {
+        "title": "Flight Check-in Assistant",
+        "icon": "✈️",
+        "desc": "Validates ticket status, triggers seat selection matrices, completes digital check-in registration, and generates mobile boarding passes.",
+        "default_query": "My flight is tomorrow. Please complete check-in.",
+        "agents": [
+            {
+                "name": "Flight Verification Agent",
+                "role": "Verify flight booking ID and passport credentials.",
+                "tools": ["QueryPnrDB", "VerifyIdentityStatus"],
+                "default_prompt": "Role: Ticket Validator\nContext: Checking airline ticketing records.\nTask: Fetch PNR data and confirm that flight ticket is active and passenger details are valid.\nConstraints: Reject check-in if booking is cancelled or flight departed."
+            },
+            {
+                "name": "Seat Selection Agent",
+                "role": "Query cabin layouts and assign seats.",
+                "tools": ["GetCabinMap", "LockSeatAPI"],
+                "default_prompt": "Role: Seat Assigner\nContext: Checking passenger preferences.\nTask: Read seat selection matrix, cross-check user preferred seat type, and assign seat.\nConstraints: Assign next best seat if preferred choice is occupied."
+            },
+            {
+                "name": "Check-in Agent",
+                "role": "Execute online check-in registration.",
+                "tools": ["SubmitManifest", "CompleteRegistration"],
+                "default_prompt": "Role: Check-in Coordinator\nContext: Manifest database update.\nTask: Submit passenger boarding manifest and update status to checked-in.\nConstraints: Block check-in if travel document verification is incomplete."
+            },
+            {
+                "name": "Notification Agent",
+                "role": "Generate PDF boarding passes and digital wallets.",
+                "tools": ["GenerateQRCode", "SendSMSAlert"],
+                "default_prompt": "Role: Pass Generator\nContext: Check-in complete.\nTask: Render visual digital boarding pass with seat, gate, PNR details, and QR barcode.\nConstraints: Deliver instantly via SMS or Email attachment."
+            }
+        ],
+        "parameters": [
+            {"id": "ticket_valid", "label": "Ticket Booking Status", "type": "select", "options": ["Confirmed", "Invalid PNR / Cancelled"], "default": "Confirmed"},
+            {"id": "seat_pref", "label": "Seat Preference", "type": "select", "options": ["Window", "Aisle", "Exit Row"], "default": "Window"}
+        ]
+    },
+    "hotel": {
+        "title": "Hotel Room Extension Assistant",
+        "icon": "🏨",
+        "desc": "Checks active reservation status, cross-references room occupancy, processes night extension payments, and extends room keycard access.",
+        "default_query": "I want to stay two more days in my hotel.",
+        "agents": [
+            {
+                "name": "Booking Verification Agent",
+                "role": "Verify active reservation details and check-out dates.",
+                "tools": ["GetStayDetails", "VerifyIdentity"],
+                "default_prompt": "Role: Front Desk Validator\nContext: Hotel PMS systems.\nTask: Confirm guest registration, current room number, and scheduled check-out date.\nConstraints: Flag error if room is not occupied by matching guest name."
+            },
+            {
+                "name": "Room Availability Agent",
+                "role": "Verify if the current room has back-to-back reservations.",
+                "tools": ["CheckRoomInventory", "FindAlternativeRoom"],
+                "default_prompt": "Role: Housekeeper Coordinator\nContext: Checking availability.\nTask: Review room availability schedule to determine if the guest can extend in the same room.\nConstraints: Suggest a room change if room is booked by another guest."
+            },
+            {
+                "name": "Payment Agent",
+                "role": "Calculate extension pricing and bill room folio.",
+                "tools": ["CalculateExtensionCost", "ChargeCreditCard"],
+                "default_prompt": "Role: Hotel Cashier\nContext: Pricing calculations.\nTask: Calculate total price (nights * daily rate) and charge guest's credit card on file.\nConstraints: Provide itemized receipt. Fail if credit card authorization declines."
+            },
+            {
+                "name": "Confirmation Agent",
+                "role": "Update check-out date and extend digital key card validity.",
+                "tools": ["ExtendKeycardAccess", "UpdateCheckOutDatePMS"],
+                "default_prompt": "Role: Room Manager\nContext: Staying duration updates.\nTask: Update checkout date in PMS and push electronic updates to RFID door lock system.\nConstraints: Output success confirmation with the new checkout date."
+            }
+        ],
+        "parameters": [
+            {"id": "room_num", "label": "Current Room Number", "type": "text", "default": "Room 304"},
+            {"id": "extend_days", "label": "Extension Days", "type": "slider", "options": [1, 7, 2], "default": 2},
+            {"id": "room_available", "label": "Current Room Available for Extension", "type": "checkbox", "default": True},
+            {"id": "card_declined", "label": "Simulate Credit Card Decline", "type": "checkbox", "default": False}
+        ]
+    },
+    "commute": {
+        "title": "Daily Commute Management",
+        "icon": "🚗",
+        "desc": "Analyzes live city traffic feeds, optimizes route times, auto-books ride-share cabs, and updates passenger ETAs.",
+        "default_query": "How can I reach office on time today?",
+        "agents": [
+            {
+                "name": "Traffic Monitoring Agent",
+                "role": "Query live GPS coordinates and congestion feeds.",
+                "tools": ["GetLiveTrafficAlerts", "QueryIncidentDB"],
+                "default_prompt": "Role: Traffic Analyst\nContext: City road monitoring systems.\nTask: Analyze congestion levels along standard routes from home to office.\nConstraints: Report active blocks, heavy bottlenecks, or accidents."
+            },
+            {
+                "name": "Route Optimization Agent",
+                "role": "Calculate fastest alternative pathways.",
+                "tools": ["ComputeShortestPath", "EstimateTravelTime"],
+                "default_prompt": "Role: Route Planner\nContext: GPS navigation optimization.\nTask: Run pathfinder algorithms to bypass traffic blocks and recommend the fastest route.\nConstraints: Present route duration and comparison metrics."
+            },
+            {
+                "name": "Transport Booking Agent",
+                "role": "Simulate cab booking API integrations.",
+                "tools": ["RequestCabRide", "ConfirmRideCost"],
+                "default_prompt": "Role: Booking Dispatcher\nContext: Rideshare API access.\nTask: Automatically book a cab on the selected route and lock fare prices.\nConstraints: Match with high-rating drivers nearby."
+            },
+            {
+                "name": "Notification Agent",
+                "role": "Send cab updates and driver details.",
+                "tools": ["SendSMSAlert", "GetLiveCabLocation"],
+                "default_prompt": "Role: Notification Dispatcher\nContext: Dispatch update.\nTask: Text vehicle type, driver name, license plate, ETA, and real-time live map links.\nConstraints: Keep alert concise."
+            }
+        ],
+        "parameters": [
+            {"id": "traffic_congestion", "label": "Route A Traffic Level", "type": "select", "options": ["Heavy Congestion (Accident)", "Moderate Traffic", "Light Traffic"], "default": "Heavy Congestion (Accident)"},
+            {"id": "cab_type", "label": "Cab Category Choice", "type": "select", "options": ["Prime Sedan", "Mini Eco", "Auto Rickshaw"], "default": "Prime Sedan"}
+        ]
+    },
+    "skill": {
+        "title": "Skill Development Assistant",
+        "icon": "🎯",
+        "desc": "Analyzes career aspirations, checks existing skill sets to define learning gaps, recommends courses, and creates learning check roadmaps.",
+        "default_query": "I want to become a Data Scientist. What should I learn?",
+        "agents": [
+            {
+                "name": "Career Analysis Agent",
+                "role": "Map desired career profiles to industry standards.",
+                "tools": ["FetchCareerProfile", "QuerySkillDatabase"],
+                "default_prompt": "Role: Career Advisor\nContext: Professional development mapping.\nTask: Outline the core technologies and masteries expected in the requested role.\nConstraints: Return standard structured list of competencies."
+            },
+            {
+                "name": "Skill Gap Agent",
+                "role": "Evaluate student's background to identify skill gaps.",
+                "tools": ["AssessStudentProfile", "ListMissingSkills"],
+                "default_prompt": "Role: Skill Gap Assessor\nContext: Comparing skill records.\nTask: Contrast career checklist against the student's currently known skills to generate a missing list.\nConstraints: Group gaps into fundamental, advanced, and expert levels."
+            },
+            {
+                "name": "Course Recommendation Agent",
+                "role": "Find top courses matching the skill gaps.",
+                "tools": ["SearchCourseCatalogs", "MatchCertifications"],
+                "default_prompt": "Role: Curriculum Designer\nContext: Academic recommendations.\nTask: Match the student's skill gap items to specific curated courses and certifications.\nConstraints: Prioritize free hands-on practice labs first."
+            },
+            {
+                "name": "Progress Tracking Agent",
+                "role": "Generate checking checklist worksheets and reports.",
+                "tools": ["GenerateSyllabusChecklist", "ScheduleWeeklyReminders"],
+                "default_prompt": "Role: Progress Coach\nContext: Study planner setup.\nTask: Package course list into weekly milestone targets and set up progress email alerts.\nConstraints: Provide checking tracker templates."
+            }
+        ],
+        "parameters": [
+            {"id": "career_goal", "label": "Target Career Goal", "type": "select", "options": ["Data Scientist", "Full-Stack Web Developer", "Cloud Solutions Architect"], "default": "Data Scientist"},
+            {"id": "known_skills", "label": "Skills You Already Know", "type": "select", "options": ["None (Beginner)", "Basic Python & SQL", "JavaScript & HTML5", "Linux & Shell Scripting"], "default": "Basic Python & SQL"}
+        ]
+    },
+    "vacation": {
+        "title": "Vacation Planning Assistant",
+        "icon": "🌴",
+        "desc": "Filters budget-friendly destinations, runs price checks on flights/hotels, reserves bookings, and designs full day-wise itineraries.",
+        "default_query": "Plan a 5-day vacation under ₹30,000.",
+        "agents": [
+            {
+                "name": "Destination Recommendation Agent",
+                "role": "Filter cities within budget bounds.",
+                "tools": ["FilterDestinationsByPrice", "QueryWeatherAPI"],
+                "default_prompt": "Role: Travel Scout\nContext: Vacation filtering database.\nTask: Suggest list of holiday spots that fit inside the traveler's financial limit.\nConstraints: Recommend 2 top matching locations with average costs."
+            },
+            {
+                "name": "Budget Planning Agent",
+                "role": "Perform detail breakdown on travel and hotel pricing.",
+                "tools": ["EstimateHotelCosts", "SearchCheapFlights"],
+                "default_prompt": "Role: Financial Travel Planner\nContext: Vacation cost calculations.\nTask: Compare flights and hotel prices for matching spots to pick the best value option.\nConstraints: Keep total cost below budget, leaving 15% safety buffer."
+            },
+            {
+                "name": "Booking Agent",
+                "role": "Verify availability and pre-book packages.",
+                "tools": ["PlaceTemporaryHoldHotel", "LockFlightSeat"],
+                "default_prompt": "Role: Booking Coordinator\nContext: Ticketing API.\nTask: Pre-book flights and hotel rooms for chosen dates to secure prices.\nConstraints: Complete reservation only if user parameters are met."
+            },
+            {
+                "name": "Itinerary Agent",
+                "role": "Build day-wise visual vacation brochures.",
+                "tools": ["GetLocalActivities", "CompileItineraryPdf"],
+                "default_prompt": "Role: Tour Architect\nContext: Travel guide.\nTask: Construct full day-by-day trip itinerary showing spots, restaurants, and timings.\nConstraints: Keep active travel under 6 hours daily."
+            }
+        ],
+        "parameters": [
+            {"id": "budget_val", "label": "Vacation Budget Limit (₹)", "type": "slider", "options": [15000, 80000, 30000], "default": 30000},
+            {"id": "duration", "label": "Vacation Duration", "type": "select", "options": ["3 Days", "5 Days", "7 Days"], "default": "5 Days"},
+            {"id": "travelers", "label": "Number of Travelers", "type": "slider", "options": [1, 5, 2], "default": 2}
+        ]
+    }
+}
+
+# Initialize session states
+if "selected_scenario" not in st.session_state:
+    st.session_state.selected_scenario = "doctor"
+if "current_step" not in st.session_state:
+    st.session_state.current_step = 0
+if "logs" not in st.session_state:
+    st.session_state.logs = ["[SYSTEM] Ready. Select a scenario and run to start simulation."]
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "custom_prompts" not in st.session_state:
+    st.session_state.custom_prompts = {}
+if "run_counter" not in st.session_state:
+    st.session_state.run_counter = 0
+if "query_override" not in st.session_state:
+    st.session_state.query_override = ""
+if "param_values" not in st.session_state:
+    st.session_state.param_values = {}
+if "shared_state" not in st.session_state:
+    st.session_state.shared_state = {}
+
+# Load default prompts into session state if not exist
+for s_key, s_val in SCENARIOS.items():
+    if s_key not in st.session_state.custom_prompts:
+        st.session_state.custom_prompts[s_key] = {}
+        for agent in s_val["agents"]:
+            st.session_state.custom_prompts[s_key][agent["name"]] = agent["default_prompt"]
+
+
+# --------------------------------------------------------------------------
+# 2. SIMULATION DYNAMIC REASONING ENGINE (PYTHON)
+# --------------------------------------------------------------------------
+
+def get_agent_instruction(scenario_key, agent_name):
+    # Retrieve modified prompt if edits were made, else default
+    return st.session_state.custom_prompts[scenario_key].get(agent_name, "")
+
+def run_agent_simulation_step(scenario_key, step_num, params, user_q):
+    """
+    Simulates execution for a single agent. Returns (log_lines, chat_msg, state_mutations, success_bool)
+    """
+    scenario = SCENARIOS[scenario_key]
+    agent = scenario["agents"][step_num]
+    agent_name = agent["name"]
+    prompt = get_agent_instruction(scenario_key, agent_name)
+    
+    log_lines = []
+    chat_msg = None
+    state_mutations = {}
+    success = True
+    
+    # Extract prompt instructions context
+    p_lines = [l.strip() for l in prompt.split('\n') if ':' in l]
+    prompt_hints = " ".join(p_lines)
+    
+    # --------------------------------------------------
+    # Doctor Scenario Simulation Logic
+    # --------------------------------------------------
+    if scenario_key == "doctor":
+        illness = params.get("illness", "Fever")
+        time_pref = params.get("time", "Morning")
+        budget = params.get("budget", 600)
+        
+        if step_num == 0:  # Doctor Search Agent
+            log_lines.append(f"[AGENT: {agent_name}] Read System Instructions: {prompt_hints[:80]}...")
+            log_lines.append(f"[AGENT: {agent_name}] Input parsed: illness='{illness}', query='{user_q}'")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool MatchSymptoms(illness='{illness}')...")
+            
+            if illness == "Fever":
+                doctors = [{"name": "Dr. Sharma", "specialty": "General Physician", "dist": "1.2km", "fee": 500},
+                           {"name": "Dr. Verma", "specialty": "General Medicine", "dist": "3.5km", "fee": 400}]
+            elif illness == "Toothache":
+                doctors = [{"name": "Dr. Alok (Dentist)", "specialty": "Orthodontics", "dist": "2.1km", "fee": 600}]
+            else: # Fracture
+                doctors = [{"name": "Dr. Kapoor (Ortho)", "specialty": "Orthopedics", "dist": "4.8km", "fee": 1000}]
+            
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool CalculateProximity()... Found {len(doctors)} matching clinics nearby.")
+            doc_names = ", ".join([d["name"] for d in doctors])
+            log_lines.append(f"[AGENT: {agent_name}] Output response: {doc_names} are available nearby.")
+            
+            chat_msg = {
+                "sender": agent_name, "avatar": "🩺",
+                "content": f"Hi! Based on your symptom of {illness.lower()}, I searched nearby specialists. I found: " +
+                           ", ".join([f"{d['name']} ({d['specialty']} - {d['dist']})" for d in doctors]) + ". Passing this to booking."
+            }
+            state_mutations = {"matched_doctors": doctors, "illness": illness, "time_pref": time_pref}
+            
+        elif step_num == 1:  # Appointment Booking Agent
+            prev_doctors = st.session_state.shared_state.get("matched_doctors", [])
+            log_lines.append(f"[AGENT: {agent_name}] Reading state matched_doctors: {prev_doctors}")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool GetAvailabilityList()...")
+            
+            selected_doc = prev_doctors[0] if prev_doctors else {"name": "Dr. Sharma", "fee": 500}
+            slot = "10:00 AM" if "Morning" in time_pref else "3:00 PM"
+            
+            log_lines.append(f"[AGENT: {agent_name}] Lock slot at {slot} for {selected_doc['name']}.")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool ReserveSlotDB()... Slot locked temporarily.")
+            
+            chat_msg = {
+                "sender": agent_name, "avatar": "📅",
+                "content": f"I verified schedules for the matching doctors. {selected_doc['name']} has an open slot tomorrow at {slot}. I've placed a temporary hold on it. Handing over to Payment Agent."
+            }
+            state_mutations = {"selected_doctor": selected_doc, "booking_slot": slot, "booking_status": "Temporarily Held"}
+            
+        elif step_num == 2:  # Payment Agent
+            selected_doc = st.session_state.shared_state.get("selected_doctor", {"name": "Dr. Sharma", "fee": 500})
+            fee = selected_doc.get("fee", 500)
+            log_lines.append(f"[AGENT: {agent_name}] Reading doctor consultation fee: ₹{fee}")
+            log_lines.append(f"[AGENT: {agent_name}] Budget limit set by user: ₹{budget}")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool CheckConsultationFee()...")
+            
+            if fee > budget:
+                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Fee ₹{fee} exceeds patient budget limit of ₹{budget}!")
+                log_lines.append(f"[AGENT: {agent_name}] Check-in aborted. Booking rejected.")
+                chat_msg = {
+                    "sender": agent_name, "avatar": "💳",
+                    "content": f"Warning! {selected_doc['name']}'s consultation fee is ₹{fee}, which exceeds your budget limit of ₹{budget}. Transaction declined. Reservation cancelled."
+                }
+                state_mutations = {"payment_verified": False, "booking_status": "Declined - Budget Exceeded", "error": "Insufficient Budget"}
+                success = False
+            else:
+                log_lines.append(f"[AGENT: {agent_name}] Budget check passed. Calling ValidateGatewayStatus()... Gateway OK.")
+                log_lines.append(f"[AGENT: {agent_name}] Transaction verified: ₹{fee} consultation fee processed.")
+                chat_msg = {
+                    "sender": agent_name, "avatar": "💳",
+                    "content": f"Payment check successful! Verified consultation fee of ₹{fee}. Payment request generated and validated. Handing to Reminder Agent."
+                }
+                state_mutations = {"payment_verified": True, "fee_charged": fee, "booking_status": "Payment Verified"}
+                
+        elif step_num == 3:  # Reminder Agent
+            doc = st.session_state.shared_state.get("selected_doctor", {"name": "Dr. Sharma"})
+            slot = st.session_state.shared_state.get("booking_slot", "10:00 AM")
+            log_lines.append(f"[AGENT: {agent_name}] Reading booking parameters for reminder template.")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool CreateCalendarInvite()... Calendar ICS file built.")
+            log_lines.append(f"[AGENT: {agent_name}] Calling tool ScheduleSMSGate()... Alert queued for tomorrow 1 hour before {slot}.")
+            
+            chat_msg = {
+                "sender": agent_name, "avatar": "🔔",
+                "content": f"I've registered calendar alerts and scheduled a SMS reminder for your appointment with {doc['name']} at {slot} tomorrow (1 hour lead time). All checks complete!"
+            }
+            state_mutations = {"reminder_scheduled": True, "reminder_lead_time": "1 hour", "booking_status": "Confirmed"}
+            
+    # --------------------------------------------------
