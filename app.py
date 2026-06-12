@@ -4,6 +4,17 @@ import time
 import json
 import re
 import textwrap
+import os
+import requests
+
+# Load .env file manually if it exists to retrieve API keys locally
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ[key.strip()] = val.strip()
 
 # Helper function to prevent indented HTML strings from being interpreted as code blocks by markdown parser
 def render_html(html_str):
@@ -627,6 +638,8 @@ if "param_values" not in st.session_state:
     st.session_state.param_values = {}
 if "shared_state" not in st.session_state:
     st.session_state.shared_state = {}
+if "groq_api_key" not in st.session_state:
+    st.session_state.groq_api_key = os.getenv("GROQ_API_KEY", "")
 
 # Load default prompts into session state if not exist
 for s_key, s_val in SCENARIOS.items():
@@ -1509,10 +1522,9 @@ def render_outcome_receipt(scenario_key):
 # 4. STRUCTURED PROMPT EVALUATOR ENGINE (RTFC FRAMEWORK)
 # --------------------------------------------------------------------------
 
-def evaluate_rtfc_prompt(prompt_text):
+def evaluate_rtfc_prompt_local(prompt_text):
     """
-    Evaluates a prompt structured with Role, Context, Task, and Constraints.
-    Returns scorecard data and recommendations.
+    Local heuristic-based evaluator for prompt quality.
     """
     # Regex to find sections
     role_match = re.search(r'Role:(.*?)(?:Context:|Task:|Constraints:|$)', prompt_text, re.DOTALL | re.IGNORECASE)
@@ -1525,54 +1537,143 @@ def evaluate_rtfc_prompt(prompt_text):
     task_content = task_match.group(1).strip() if task_match else ""
     constraints_content = constraints_match.group(1).strip() if constraints_match else ""
     
-    # Evaluate components
     scores = {}
     feedback = {}
     
-    # 1. Role Score (Max 25)
+    # 1. Role (Max 25)
+    role_score = 0
+    role_fb = []
     if not role_content:
-        scores["Role"] = 0
-        feedback["Role"] = "Missing. An agent prompt must explicitly define its identity (e.g. 'Act as a Senior System Administrator')."
-    elif len(role_content) < 15:
-        scores["Role"] = 12
-        feedback["Role"] = "Weak role definitions. Try to add background or perspective (e.g., 'Act as a Customer Support Agent specializing in medical bills')."
+        role_fb.append("Missing 'Role' section completely. Define the agent identity (e.g. 'Act as an expert doctor booking agent').")
     else:
-        scores["Role"] = 25
-        feedback["Role"] = "Excellent identity. Explicit persona and credentials help align output tone."
-        
-    # 2. Context Score (Max 25)
+        role_score += 5  # Has role section
+        # Identity phrasing
+        role_lower = role_content.lower()
+        if any(w in role_lower for w in ["act as", "you are", "role:", "persona"]):
+            role_score += 5
+        else:
+            role_fb.append("Use explicit identity phrasing like 'Act as...' or 'You are...' to anchor the agent's persona.")
+            
+        # Expertise / domain specification
+        if any(w in role_lower for w in ["expert", "senior", "specialist", "consultant", "engineer", "analyst", "planner", "auditor", "coordinator", "manager"]):
+            role_score += 5
+        else:
+            role_fb.append("Specify an expertise level or explicit professional title (e.g., 'Senior Planner', 'Cost Controller specialist').")
+            
+        # Domain setting/field
+        if len(role_lower.split()) > 3:
+            role_score += 5
+        else:
+            role_fb.append("Expand the role description to specify the context of action (e.g. 'specializing in medical accounts').")
+            
+        # Length check
+        if len(role_content) >= 15:
+            role_score += 5
+        else:
+            role_fb.append("Role explanation is too brief. Add more credentials/details.")
+            
+        if not role_fb:
+            role_fb.append("Excellent persona. Explicit persona and credentials help align output style and quality.")
+    scores["Role"] = role_score
+    feedback["Role"] = " ".join(role_fb)
+    
+    # 2. Context (Max 25)
+    context_score = 0
+    context_fb = []
     if not context_content:
-        scores["Context"] = 0
-        feedback["Context"] = "Missing. Providing zero background environment context increases hallucinations and vague assumptions."
-    elif len(context_content) < 20:
-        scores["Context"] = 14
-        feedback["Context"] = "Brief context. Include database references, APIs, or surrounding software info."
+        context_fb.append("Missing 'Context' section completely. Provide background environment information.")
     else:
-        scores["Context"] = 25
-        feedback["Context"] = "Good context details. Clear background helps the agent understand its surrounding environment."
+        context_score += 5  # Has context section
+        context_lower = context_content.lower()
         
-    # 3. Task Score (Max 25)
+        # Check for databases, APIs, logs, inputs
+        if any(w in context_lower for w in ["database", "api", "logs", "table", "input", "schema", "variables", "history", "files", "spreadsheet", "record", "system"]):
+            context_score += 10
+        else:
+            context_fb.append("Specify data environments, databases, or API sources the agent interacts with (e.g., 'GPS rideshare API', 'syllabus catalog').")
+            
+        # Check for parameters / scopes / bounds
+        if any(w in context_lower for w in ["local", "nearby", "budget", "limit", "radius", "weekly", "daily", "monthly", "user"]):
+            context_score += 5
+        else:
+            context_fb.append("Define operational bounds or user-defined variable environments within the context.")
+            
+        # Length check
+        if len(context_content) >= 25:
+            context_score += 5
+        else:
+            context_fb.append("Context description is short. More background data helps avoid default model assumptions.")
+            
+        if not context_fb:
+            context_fb.append("Clear context details. Accurate environmental background limits model assumptions.")
+    scores["Context"] = context_score
+    feedback["Context"] = " ".join(context_fb)
+    
+    # 3. Task (Max 25)
+    task_score = 0
+    task_fb = []
     if not task_content:
-        scores["Task"] = 0
-        feedback["Task"] = "Missing! The main instruction is absent. The model won't know what action to execute."
-    elif len(task_content) < 30:
-        scores["Task"] = 15
-        feedback["Task"] = "Task is vague. Use action verbs (e.g., 'Extract', 'Validate', 'Compare') and describe input/output formats."
+        task_fb.append("Missing 'Task' section completely. The core action to execute is missing.")
     else:
-        scores["Task"] = 25
-        feedback["Task"] = "Strong core task instruction. Concrete step descriptions lead to high target accuracy."
+        task_score += 5  # Has task section
+        task_lower = task_content.lower()
         
-    # 4. Constraints Score (Max 25)
+        # Check for strong action verbs
+        verbs = ["analyze", "compare", "calculate", "compute", "find", "select", "verify", "generate", "schedule", "retrieve", "compile", "identify", "search", "inspect", "filter", "evaluate", "assess", "prioritize", "draft", "complete", "extract", "check"]
+        if any(v in task_lower for v in verbs):
+            task_score += 10
+        else:
+            task_fb.append("Use strong action-oriented verbs (e.g., 'Verify', 'Extract', 'Calculate') as the core task instruction.")
+            
+        # Check for IO format / target clarity
+        if any(w in task_lower for w in ["list", "json", "format", "output", "return", "report", "results", "response", "render", "invoice", "receipt", "alert", "notification"]):
+            task_score += 5
+        else:
+            task_fb.append("Specify clear input/output formats or targets (e.g. 'return list', 'generate JSON').")
+            
+        # Length check
+        if len(task_content) >= 35:
+            task_score += 5
+        else:
+            task_fb.append("Task details are sparse. Make the task instructions highly detailed and specific.")
+            
+        if not task_fb:
+            task_fb.append("Strong task instruction. Active verbs and formatting parameters lead to predictable outputs.")
+    scores["Task"] = task_score
+    feedback["Task"] = " ".join(task_fb)
+    
+    # 4. Constraints (Max 25)
+    constraints_score = 0
+    constraints_fb = []
     if not constraints_content:
-        scores["Constraints"] = 5
-        feedback["Constraints"] = "Empty or vague constraints. Add limitations (e.g. format rules, length bounds, no explanations) to stabilize workflow steps."
-    elif len(constraints_content) < 15:
-        scores["Constraints"] = 16
-        feedback["Constraints"] = "Light constraints. Define strictly what the agent must NOT output (e.g. 'no conversation', 'raw JSON only')."
+        constraints_fb.append("Missing 'Constraints' section. Guardrails are critical to prevent formatting and logical drift.")
     else:
-        scores["Constraints"] = 25
-        feedback["Constraints"] = "Clear guardrails. Hard constraints are critical for maintaining pipeline integrity across agent transitions."
-
+        constraints_score += 5  # Has constraints section
+        constraints_lower = constraints_content.lower()
+        
+        # Check for negative constraints
+        if any(w in constraints_lower for w in ["do not", "never", "avoid", "no conversation", "raw only", "must not", "without", "exclude", "not output", "no explanation", "no preamble", "don't"]):
+            constraints_score += 10
+        else:
+            constraints_fb.append("Include explicit negative constraints (e.g. 'Do not include conversational preamble', 'Do not summarize') to restrict unwanted output.")
+            
+        # Check for strict boundaries/limitations
+        if any(w in constraints_lower for w in ["only", "strictly", "under", "limit", "max", "min", "within", "range", "exactly", "format", "rules", "must"]):
+            constraints_score += 5
+        else:
+            constraints_fb.append("Add strict limit boundaries or format boundaries (e.g. 'within 10km', 'maximum of 3 items').")
+            
+        # Length check
+        if len(constraints_content) >= 20:
+            constraints_score += 5
+        else:
+            constraints_fb.append("Constraints are too brief. Add more structural guardrails.")
+            
+        if not constraints_fb:
+            constraints_fb.append("Excellent constraints. Explicit limits prevent pipeline integrity breakages across agent transitions.")
+    scores["Constraints"] = constraints_score
+    feedback["Constraints"] = " ".join(constraints_fb)
+    
     total_score = sum(scores.values())
     
     return {
@@ -1582,8 +1683,108 @@ def evaluate_rtfc_prompt(prompt_text):
             "Context": {"score": scores["Context"], "text": context_content, "feedback": feedback["Context"]},
             "Task": {"score": scores["Task"], "text": task_content, "feedback": feedback["Task"]},
             "Constraints": {"score": scores["Constraints"], "text": constraints_content, "feedback": feedback["Constraints"]}
-        }
+        },
+        "is_local": True
     }
+
+
+def evaluate_rtfc_prompt_groq(prompt_text, api_key):
+    """
+    Evaluates a prompt using the Groq API (Llama-3.3-70b-versatile).
+    Returns scorecard data and recommendations in JSON format.
+    """
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    system_prompt = (
+        "You are an expert prompt engineer and grader. Evaluate the given prompt based on the RTFC framework:\n"
+        "- Role (Identity, Expertise, Persona)\n"
+        "- Context (Data setting, system boundary, background)\n"
+        "- Task (Core action, strong verbs, target inputs/outputs)\n"
+        "- Constraints (Negative constraints, format boundaries, limits)\n\n"
+        "Assign a score out of 25 for each of these 4 sections (Role, Context, Task, Constraints) based on quality, precision, clarity, and suitability for a multi-agent system.\n"
+        "Provide constructive, actionable feedback (1-3 sentences) for each section. If the section is completely missing, the score should be 0 and the feedback should indicate it is missing.\n\n"
+        "You MUST return a JSON object with this exact structure:\n"
+        "{\n"
+        "  \"total\": <sum of scores, integer between 0 and 100>,\n"
+        "  \"sections\": {\n"
+        "    \"Role\": { \"score\": <integer 0-25>, \"feedback\": \"<constructive feedback string>\" },\n"
+        "    \"Context\": { \"score\": <integer 0-25>, \"feedback\": \"<constructive feedback string>\" },\n"
+        "    \"Task\": { \"score\": <integer 0-25>, \"feedback\": \"<constructive feedback string>\" },\n"
+        "    \"Constraints\": { \"score\": <integer 0-25>, \"feedback\": \"<constructive feedback string>\" }\n"
+        "  }\n"
+        "}"
+    )
+    
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Please evaluate this prompt:\n\n{prompt_text}"}
+        ],
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"}
+    }
+    
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
+    response.raise_for_status()
+    res_json = response.json()
+    content = res_json["choices"][0]["message"]["content"]
+    result = json.loads(content)
+    
+    # Parse and ensure it contains the expected structure
+    total = int(result.get("total", 0))
+    sections = result.get("sections", {})
+    
+    role_match = re.search(r'Role:(.*?)(?:Context:|Task:|Constraints:|$)', prompt_text, re.DOTALL | re.IGNORECASE)
+    context_match = re.search(r'Context:(.*?)(?:Role:|Task:|Constraints:|$)', prompt_text, re.DOTALL | re.IGNORECASE)
+    task_match = re.search(r'Task:(.*?)(?:Role:|Context:|Constraints:|$)', prompt_text, re.DOTALL | re.IGNORECASE)
+    constraints_match = re.search(r'Constraints:(.*?)(?:Role:|Context:|Task:|$)', prompt_text, re.DOTALL | re.IGNORECASE)
+    
+    parsed_result = {
+        "total": total,
+        "sections": {
+            "Role": {
+                "score": int(sections.get("Role", {}).get("score", 0)),
+                "text": role_match.group(1).strip() if role_match else "",
+                "feedback": sections.get("Role", {}).get("feedback", "No feedback provided.")
+            },
+            "Context": {
+                "score": int(sections.get("Context", {}).get("score", 0)),
+                "text": context_match.group(1).strip() if context_match else "",
+                "feedback": sections.get("Context", {}).get("feedback", "No feedback provided.")
+            },
+            "Task": {
+                "score": int(sections.get("Task", {}).get("score", 0)),
+                "text": task_match.group(1).strip() if task_match else "",
+                "feedback": sections.get("Task", {}).get("feedback", "No feedback provided.")
+            },
+            "Constraints": {
+                "score": int(sections.get("Constraints", {}).get("score", 0)),
+                "text": constraints_match.group(1).strip() if constraints_match else "",
+                "feedback": sections.get("Constraints", {}).get("feedback", "No feedback provided.")
+            }
+        },
+        "is_local": False
+    }
+    return parsed_result
+
+
+def evaluate_rtfc_prompt(prompt_text):
+    """
+    Evaluates a prompt structured with Role, Context, Task, and Constraints.
+    Returns scorecard data and recommendations.
+    """
+    groq_api_key = st.session_state.get("groq_api_key", "").strip() or os.getenv("GROQ_API_KEY", "").strip()
+    if groq_api_key:
+        try:
+            return evaluate_rtfc_prompt_groq(prompt_text, groq_api_key)
+        except Exception as e:
+            pass
+    return evaluate_rtfc_prompt_local(prompt_text)
 
 
 # --------------------------------------------------------------------------
@@ -1954,6 +2155,10 @@ with col_main_right:
             
             # Show overall score
             st.markdown("#### 📊 Prompt Scorecard")
+            if report.get("is_local", True):
+                st.warning("⚠️ Live Groq LLM evaluation failed or timed out. Running local quality heuristic fallback evaluation.")
+            else:
+                st.success("🟢 Running live Groq LLM evaluation.")
             col_score, col_status = st.columns([1, 2])
             
             with col_score:
