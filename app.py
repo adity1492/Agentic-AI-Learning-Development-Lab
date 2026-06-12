@@ -248,373 +248,261 @@ st.markdown("""
 # --------------------------------------------------------------------------
 
 SCENARIOS = {
-    "food_ordering": {
-        "title": "Healthy Dinner Ordering",
-        "icon": "🍽️",
-        "desc": "Searches restaurants, filters healthy dinner meals, keeps the total under ₹300, and books after approval.",
-        "default_query": "Order a healthy dinner for tonight under ₹300.",
-        "agents": [
-            {
-                "name": "Restaurant Search Agent",
-                "role": "Search nearby restaurants and their basic cuisines.",
-                "tools": ["SearchNearbyRestaurants", "CalculateProximityKM"],
-                "default_prompt": "Role: Restaurant Search Agent\nContext: Local food delivery listings.\nTask: Find nearby restaurants and list their distances.\nConstraints: Return matching dining names only. Do not calculate pricing."
-            },
-            {
-                "name": "Dietary Filter Agent",
-                "role": "Analyze menu items to filter for healthy options.",
-                "tools": ["MatchDietProfile", "CalculateCalories"],
-                "default_prompt": "Role: Dietary Health Specialist\nContext: Nutritional tables.\nTask: Inspect available dishes, filter out high-calorie junk foods, and highlight healthy options.\nConstraints: Recommend dishes with protein and low fats only."
-            },
-            {
-                "name": "Price Guardrail Agent",
-                "role": "Verify prices and keep total cost within user budget.",
-                "tools": ["ComputeTotalCost", "ApplyDiscounts", "VerifyBudgetLimit"],
-                "default_prompt": "Role: Cost Controller\nContext: Checkout calculations (tax + delivery fees).\nTask: Calculate total checkout cost and verify it is under the user-defined budget.\nConstraints: Flag a budget failure if cost exceeds the limit."
-            },
-            {
-                "name": "Order Dispatch Agent",
-                "role": "Process payment, simulate approval, and generate tracking details.",
-                "tools": ["SimulateApproval", "TriggerOrderAPI", "GetTrackingVoucher"],
-                "default_prompt": "Role: Checkout Dispatcher\nContext: Order finalization.\nTask: Ask for final authorization, place the order through the api, and generate tracking info.\nConstraints: Provide confirmation only after order receipt is generated."
-            }
-        ],
-        "parameters": [
-            {"id": "meal_choice", "label": "Dinner Meal Choice", "type": "select", "options": ["Healthy Quinoa Salad & Juice", "Avocado Toast & Green Tea", "Butter Paneer Masala & Naan (Cheat Meal)"], "default": "Healthy Quinoa Salad & Juice"},
-            {"id": "delivery_tier", "label": "Delivery Priority", "type": "select", "options": ["Standard Delivery (+₹30)", "Priority Express (+₹80)"], "default": "Standard Delivery (+₹30)"},
-            {"id": "budget_limit", "label": "Max Budget (₹)", "type": "slider", "options": [150, 500, 300], "default": 300}
-        ]
-    },
-    "grocery_shopping": {
-        "title": "Smart Grocery Shopping",
-        "icon": "🛒",
-        "desc": "Compiles a monthly grocery list, matches store availability, compares prices, and orders the cheapest overall option.",
-        "default_query": "Purchase my monthly grocery list under ₹2500.",
-        "agents": [
-            {
-                "name": "List Compiler Agent",
-                "role": "Compile the monthly essentials grocery checklist.",
-                "tools": ["ListEssentials", "CheckStapleCategories"],
-                "default_prompt": "Role: Household Planner\nContext: Monthly grocery checklists.\nTask: Create a structured list of essentials (rice, flour, oil, salt, sugar) for monthly cooking.\nConstraints: Stick to standard household items only."
-            },
-            {
-                "name": "Inventory Search Agent",
-                "role": "Identify stores carrying all items on the checklist.",
-                "tools": ["QueryStoreInventory", "VerifyInStock"],
-                "default_prompt": "Role: Inventory Checker\nContext: Local store stock tables.\nTask: Search local stores to verify if all items in the checklist are fully in stock.\nConstraints: Return list of matching stores with inventory availability."
-            },
-            {
-                "name": "Price Optimizer Agent",
-                "role": "Compare basket prices across stores to find the cheapest.",
-                "tools": ["ComputeBasketTotals", "ApplyStoreDiscounts"],
-                "default_prompt": "Role: Price Auditor\nContext: Pricing matrices of different outlets.\nTask: Compare the total price of the items across stores and identify the cheapest option.\nConstraints: Recommend the single lowest-cost store. Alert if over budget."
-            },
-            {
-                "name": "Order Scheduler Agent",
-                "role": "Confirm basket booking and schedule delivery slot.",
-                "tools": ["LockStoreOrder", "SelectDeliverySlot", "GenerateInvoice"],
-                "default_prompt": "Role: Booking Dispatcher\nContext: Store checkout.\nTask: Complete the purchase order at the cheapest store, set delivery schedule, and issue invoice.\nConstraints: Highlight delivery date and time clearly."
-            }
-        ],
-        "parameters": [
-            {"id": "basket_type", "label": "Grocery Basket Type", "type": "select", "options": ["Basic Household Staples", "Premium Organic Pantry"], "default": "Basic Household Staples"},
-            {"id": "store_preference", "label": "Preferred Store", "type": "select", "options": ["SuperMart (Cheapest)", "QuickGrocer (Fast)", "OrganicWhole (Premium)"], "default": "SuperMart (Cheapest)"},
-            {"id": "max_budget", "label": "Max Budget (₹)", "type": "slider", "options": [1500, 4000, 2500], "default": 2500}
-        ]
-    },
-    "laundry_pickup": {
-        "title": "Express Laundry Pickup",
-        "icon": "🧺",
-        "desc": "Searches laundry services, checks pickup slots, selects the fastest delivery, and books pickup and delivery.",
-        "default_query": "Schedule a laundry pickup and delivery before tomorrow.",
-        "agents": [
-            {
-                "name": "Laundry Locator Agent",
-                "role": "Find laundry services near the current address.",
-                "tools": ["SearchLaundryServices", "CheckReviews"],
-                "default_prompt": "Role: Laundry Locator\nContext: Local service map coordinates.\nTask: Find laundry and dry cleaning businesses near the user.\nConstraints: List company names and service distance only."
-            },
-            {
-                "name": "Slot Checker Agent",
-                "role": "Inspect available pickup slots for today.",
-                "tools": ["GetAvailableSlots", "LockTemporarySlot"],
-                "default_prompt": "Role: Schedule Inspector\nContext: Booking calendars.\nTask: Query booking calendars for laundry pickup slots available today.\nConstraints: Show immediate slots only."
-            },
-            {
-                "name": "Turnaround Validator Agent",
-                "role": "Select the fastest delivery mode to meet the deadline.",
-                "tools": ["FilterByTurnaround", "CalculateExpressFare"],
-                "default_prompt": "Role: Express Logistics Coordinator\nContext: Delivery turnarounds.\nTask: Check if laundry can be washed and delivered before tomorrow. Charge surcharge if express is needed.\nConstraints: Abort booking if deadline cannot be met."
-            },
-            {
-                "name": "Booking Dispatcher Agent",
-                "role": "Confirm booking and generate service receipt.",
-                "tools": ["ConfirmBookingDB", "SendConfirmationAlert"],
-                "default_prompt": "Role: Final Dispatcher\nContext: Finalizing bookings.\nTask: Complete booking on database, retrieve confirmation code, and send scheduling notification.\nConstraints: Output confirmation and price receipt."
-            }
-        ],
-        "parameters": [
-            {"id": "service_tier", "label": "Service Tier", "type": "select", "options": ["Express Surcharge (+₹150)", "Standard (48-hour turn)"], "default": "Express Surcharge (+₹150)"},
-            {"id": "deadline_tomorrow", "label": "Must Deliver Before Tomorrow", "type": "checkbox", "default": True}
-        ]
-    },
-    "study_planner": {
-        "title": "Custom Study Planner",
+    "library": {
+        "title": "Library Book Borrowing Assistant",
         "icon": "📚",
-        "desc": "Analyzes available hours, divides subjects, prioritizes difficult topics, generates a timetable, and schedules reminders.",
-        "default_query": "Create an effective weekly study schedule.",
+        "desc": "Is scenario mein user ko Artificial Intelligence ki book kal assignment ke liye chahiye. Multi-Agent system milkar book search, availability check, reservation aur notification ka kaam karta hai.",
+        "default_query": "I need the book 'Artificial Intelligence' for my assignment.",
         "agents": [
             {
-                "name": "Hour Analyzer Agent",
-                "role": "Assess available hours in the weekly routine.",
-                "tools": ["ReadAvailableHours", "AssessSubjectVolume"],
-                "default_prompt": "Role: Hour Analyst\nContext: Student daily schedules.\nTask: Analyze available free hours across the week to allocate for studying.\nConstraints: Output total weekly study hours capacity."
+                "name": "Book Search Agent",
+                "role": "Agent library catalog aur digital database search karta hai.",
+                "tools": ["QueryCatalogDB", "CheckISBN"],
+                "default_prompt": "Role: Book Search Agent\nContext: Library catalog aur digital database.\nTask: Kaunsi library mein yeh book available hai?\nConstraints: Return matching details."
             },
             {
-                "name": "Topic Weight Classifier Agent",
-                "role": "Divide subjects and flag difficult topics.",
-                "tools": ["PrioritizeDifficultTopics", "CreateTopicMap"],
-                "default_prompt": "Role: Subject Prioritizer\nContext: Syllabus and exam weightage database.\nTask: Rank subjects by difficulty and assign study weights to focus areas.\nConstraints: Give more time budget to hard subjects."
+                "name": "Availability Agent",
+                "role": "Current issue records aur reservations check kiye jaate hain.",
+                "tools": ["CheckShelfStock", "GetReservationsCount"],
+                "default_prompt": "Role: Availability Agent\nContext: Current issue records and reservations.\nTask: Kya book abhi available hai?\nConstraints: Verify physical copies."
             },
             {
-                "name": "Timetable Architect Agent",
-                "role": "Draft a weekly timetable grid.",
-                "tools": ["DraftTimetable", "OptimizeStudySpans"],
-                "default_prompt": "Role: Timetable Architect\nContext: Weekly calendar layout.\nTask: Draft a day-wise calendar schedule distributing the topics across study spans.\nConstraints: Include rest breaks and avoid study fatigue."
+                "name": "Reservation Agent",
+                "role": "Student eligibility aur borrowing limit verify ki jaati hai.",
+                "tools": ["HoldCopyDB", "CheckUserBorrowLimit"],
+                "default_prompt": "Role: Reservation Agent\nContext: Student eligibility database.\nTask: Kya student ke liye book reserve ki ja sakti hai?\nConstraints: Ensure limit not exceeded."
             },
             {
-                "name": "Reminder Scheduler Agent",
-                "role": "Configure daily notification triggers.",
-                "tools": ["RegisterDailyAlerts", "GenerateCalendarLink"],
-                "default_prompt": "Role: Reminder Coordinator\nContext: Alert scheduling system.\nTask: Set up daily alarm schedules and notification reminders for study sessions.\nConstraints: Enable SMS reminders if selected."
+                "name": "Notification Agent",
+                "role": "Reservation ID generate karke email/SMS bheja jaata hai.",
+                "tools": ["DispatchEmail", "GenerateBarcode"],
+                "default_prompt": "Role: Notification Agent\nContext: Confirmation notification systems.\nTask: Student ko confirmation kaise milega?\nConstraints: Dispatch email/SMS."
             }
         ],
         "parameters": [
-            {"id": "study_hours_daily", "label": "Daily Study Hours", "type": "slider", "options": [2, 10, 6], "default": 6},
-            {"id": "primary_difficulty", "label": "Subject Difficulty", "type": "select", "options": ["High (Maths & Physics)", "Medium (Chemistry)", "Low (English & Arts)"], "default": "High (Maths & Physics)"},
-            {"id": "sms_reminders", "label": "Enable SMS Reminders", "type": "checkbox", "default": True}
+            {"id": "book_title", "label": "Book Title", "type": "select", "options": ["Artificial Intelligence", "Advanced Python Coding", "Organic Chemistry"], "default": "Artificial Intelligence"},
+            {"id": "in_stock", "label": "Copy Available on Shelf", "type": "checkbox", "default": True},
+            {"id": "borrow_limit", "label": "Student Active Borrows", "type": "slider", "options": [0, 5, 1], "default": 1}
         ]
     },
-    "vehicle_service": {
-        "title": "Vehicle Service Booking",
-        "icon": "🚗",
-        "desc": "Searches service centers, compares prices and reviews, selects the best value, and books the service.",
-        "default_query": "Service my bike at lowest cost with best rating.",
+    "flight": {
+        "title": "Flight Check-In Assistant",
+        "icon": "✈️",
+        "desc": "Is scenario mein user ki flight kal hai aur use online check-in karke window seat chahiye.",
+        "default_query": "My flight is tomorrow. Please complete check-in with a window seat.",
         "agents": [
             {
-                "name": "Workshop Finder Agent",
-                "role": "Search service centers in the delivery radius.",
-                "tools": ["ListServiceCenters", "GetRatings"],
-                "default_prompt": "Role: Workshop Scout\nContext: Business maps.\nTask: Find nearby service centers and collect rating data.\nConstraints: List workshops within a 10km radius only."
+                "name": "Flight Verification Agent",
+                "role": "PNR, flight date aur check-in window verify ki jaati hai.",
+                "tools": ["QueryPnrDB", "VerifyIdentityStatus"],
+                "default_prompt": "Role: Flight Verification Agent\nContext: Flight ticketing system.\nTask: Kya ticket check-in ke liye valid hai?\nConstraints: Check date and check-in window."
             },
             {
-                "name": "Quote & Rating Analyzer Agent",
-                "role": "Compare quotes and customer reviews.",
-                "tools": ["FetchQuotes", "CalculateValueScore"],
-                "default_prompt": "Role: Quote Auditor\nContext: Price quote catalogs.\nTask: Compare package pricing and reviews to find the best value workshops.\nConstraints: Filter out workshops with less than 4.0 stars."
+                "name": "Seat Selection Agent",
+                "role": "Seat map analyze karke best window seat choose ki jaati hai.",
+                "tools": ["GetCabinMap", "LockSeatAPI"],
+                "default_prompt": "Role: Seat Selection Agent\nContext: Seat layout maps.\nTask: Kaunsi window seat available hai?\nConstraints: Pick best window seat."
             },
             {
-                "name": "Value Selector Agent",
-                "role": "Select the best center matching rating and budget bounds.",
-                "tools": ["VerifyBudgetLimits", "ReserveServiceSlot"],
-                "default_prompt": "Role: Value Matcher\nContext: Checking budget limits.\nTask: Check if service cost is within user limits. Choose highest rating within budget.\nConstraints: Flag error if no workshop meets budget."
+                "name": "Check-In Agent",
+                "role": "Passenger details aur baggage allowance verify kiya jaata hai.",
+                "tools": ["SubmitManifest", "CompleteRegistration"],
+                "default_prompt": "Role: Check-In Agent\nContext: Manifest update registry.\nTask: Kya online check-in complete ho sakta hai?\nConstraints: Verify baggage constraints."
             },
             {
-                "name": "Service Booking Agent",
-                "role": "Book the service slot and generate invoice receipt.",
-                "tools": ["ConfirmServiceBooking", "GenerateReceiptPDF"],
-                "default_prompt": "Role: Booking Specialist\nContext: Scheduling system.\nTask: Complete the workshop booking registration, set appointment date, and issue receipt.\nConstraints: Output booking slot and receipt details."
+                "name": "Notification Agent",
+                "role": "Boarding pass PDF generate karke email aur app mein send kiya jaata hai.",
+                "tools": ["GenerateQRCode", "SendSMSAlert"],
+                "default_prompt": "Role: Notification Agent\nContext: Delivery verification.\nTask: Boarding pass kaise deliver hoga?\nConstraints: Email/SMS boarding pass PDF."
             }
         ],
         "parameters": [
-            {"id": "service_pkg", "label": "Service Package", "type": "select", "options": ["General Tuning & Wash", "Full Engine Service & Detailing"], "default": "General Tuning & Wash"},
-            {"id": "min_rating", "label": "Minimum Rating", "type": "select", "options": ["4.5+ Stars", "4.0+ Stars"], "default": "4.5+ Stars"},
-            {"id": "budget_max", "label": "Max Budget (₹)", "type": "slider", "options": [800, 4000, 2000], "default": 2000}
+            {"id": "ticket_valid", "label": "Ticket Booking Status", "type": "select", "options": ["Confirmed", "Invalid PNR / Cancelled"], "default": "Confirmed"},
+            {"id": "seat_pref", "label": "Seat Preference", "type": "select", "options": ["Window", "Aisle", "Exit Row"], "default": "Window"}
         ]
     },
-    "electricity_bill": {
-        "title": "Electricity Bill Payment",
-        "icon": "🧾",
-        "desc": "Fetches pending utility bills, verifies amount and due dates, asks for approval, and processes payment.",
-        "default_query": "Check my pending electricity bill and pay it before the due date.",
-        "agents": [
-            {
-                "name": "Bill Retriever Agent",
-                "role": "Retrieve active utility bill details.",
-                "tools": ["QueryUtilityAccount", "RetrieveBillStatus"],
-                "default_prompt": "Role: Bill Fetcher\nContext: Utility database registry.\nTask: Fetch the active bill amount and consumer details.\nConstraints: Return account consumer name and outstanding fee."
-            },
-            {
-                "name": "Bill Auditor Agent",
-                "role": "Validate bill amount details and due dates.",
-                "tools": ["AuditAmount", "VerifyDueDate"],
-                "default_prompt": "Role: Bill Auditor\nContext: Due date validation sheets.\nTask: Audit outstanding fee and verify deadline. Flag dispute if amount looks anomalous.\nConstraints: Terminate payment if bill is disputed."
-            },
-            {
-                "name": "Gateway Authorization Agent",
-                "role": "Verify wallet balance and simulate approval.",
-                "tools": ["CheckWalletBalance", "ValidateGatewayStatus"],
-                "default_prompt": "Role: Payment Gatekeeper\nContext: Wallet system verification.\nTask: Check user wallet balance and simulate fraud verification checks.\nConstraints: Deny checkout if wallet balance is insufficient."
-            },
-            {
-                "name": "Payment Processor Agent",
-                "role": "Process transaction and generate invoice receipt.",
-                "tools": ["ExecutePayment", "GenerateReceiptCode"],
-                "default_prompt": "Role: billing specialist\nContext: Bank transaction APIs.\nTask: Execute the bill payment, update payment status in PMS, and return transaction confirmation.\nConstraints: Output receipt code and success status."
-            }
-        ],
-        "parameters": [
-            {"id": "bill_status", "label": "Bill Status Mode", "type": "select", "options": ["Regular Bill", "Disputed Bill (Abnormal Charge)"], "default": "Regular Bill"},
-            {"id": "wallet_balance", "label": "Wallet Balance (₹)", "type": "slider", "options": [500, 6000, 3000], "default": 3000},
-            {"id": "due_days_left", "label": "Days until Due Date", "type": "slider", "options": [1, 15, 3], "default": 3}
-        ]
-    },
-    "cab_booking": {
-        "title": "Cab Booking Assistant",
-        "icon": "🚕",
-        "desc": "Finds nearby cabs, compares ETA and prices, selects the cheapest option, and completes booking after approval.",
-        "default_query": "Book the cheapest cab to my college.",
-        "agents": [
-            {
-                "name": "Cab Finder Agent",
-                "role": "Locate nearby available cabs.",
-                "tools": ["LocateNearbyCabs", "FetchETAs"],
-                "default_prompt": "Role: Cab Locator\nContext: GPS rideshare API.\nTask: Scan nearby vehicles and list available vehicle types with ETAs.\nConstraints: List locations of drivers within 5km radius."
-            },
-            {
-                "name": "Fare Comparison Agent",
-                "role": "Compare fares and travel options.",
-                "tools": ["FetchFares", "IdentifyCheapest"],
-                "default_prompt": "Role: Fare Auditor\nContext: Rideshare pricing chart.\nTask: Compare the pricing of Auto, Mini, and Sedan categories for the target location.\nConstraints: Return fares ordered cheapest to most expensive."
-            },
-            {
-                "name": "Cheapest Selector Agent",
-                "role": "Select the best ride category under waiting and budget constraints.",
-                "tools": ["FilterRideCategory", "ConfirmBookingAPI"],
-                "default_prompt": "Role: Ride Matcher\nContext: Rideshare filters.\nTask: Choose the cheapest category matching maximum wait time constraints.\nConstraints: Abort if ETA exceeds the user's limit."
-            },
-            {
-                "name": "Ride Dispatch Agent",
-                "role": "Confirm booking and show driver tracking details.",
-                "tools": ["DispatchVehicle", "GetDriverInfo"],
-                "default_prompt": "Role: Dispatch Coordinator\nContext: Dispatch system database.\nTask: Finalize driver assignment, retrieve license plate and phone number, and output tracking info.\nConstraints: Render driver name and plates clearly."
-            }
-        ],
-        "parameters": [
-            {"id": "dest_distance", "label": "Destination", "type": "select", "options": ["College (5 km)", "Airport (35 km)"], "default": "College (5 km)"},
-            {"id": "max_wait_minutes", "label": "Max Wait Time (mins)", "type": "slider", "options": [5, 25, 10], "default": 10},
-            {"id": "cab_type_preference", "label": "Preferred Option", "type": "select", "options": ["Cheapest Available", "Sedan Comfort Only"], "default": "Cheapest Available"}
-        ]
-    },
-    "doctor_booking": {
+    "doctor": {
         "title": "Doctor Appointment Booking",
         "icon": "🏥",
-        "desc": "Searches nearby doctors, compares appointment waiting times, selects the shortest wait slot, and books appointment.",
-        "default_query": "Get doctor appointment with minimum waiting time.",
+        "desc": "Is scenario mein user ko kal evening mein doctor appointment minimum waiting time ke saath book karni hai.",
+        "default_query": "I have a fever and need to see a doctor tomorrow evening with minimum waiting time.",
         "agents": [
             {
-                "name": "Clinic Search Agent",
-                "role": "Scan clinics specializing in relevant symptoms.",
-                "tools": ["SearchClinics", "MatchSpecialty"],
-                "default_prompt": "Role: Clinic Search Agent\nContext: Clinic listings database.\nTask: Find nearby clinics and specialist profiles matching candidate symptoms.\nConstraints: Limit search radius to 15km."
+                "name": "Doctor Search Agent",
+                "role": "Location aur specialty ke basis par doctors search kiye jaate hain.",
+                "tools": ["SearchClinicsAPI", "MatchSymptoms", "CalculateProximity"],
+                "default_prompt": "Role: Doctor Search Agent\nContext: Registered doctor directories.\nTask: Kal evening mein kaunse doctors available hain?\nConstraints: Limit search by distance and specialty."
             },
             {
-                "name": "Queue Analyzer Agent",
-                "role": "Compare patient queues and waiting times.",
-                "tools": ["FetchQueueWaitTime", "CompareSchedules"],
-                "default_prompt": "Role: Queue Analyst\nContext: Clinic patient queue registries.\nTask: Analyze current active wait times and patient queue lengths for the clinics.\nConstraints: List clinics sorted by shortest wait times."
+                "name": "Slot Selection Agent",
+                "role": "Appointment queues compare ki jaati hain.",
+                "tools": ["GetAvailabilityList", "ReserveSlotDB"],
+                "default_prompt": "Role: Slot Selection Agent\nContext: Clinic schedule lists.\nTask: Kis slot mein sabse kam waiting time hai?\nConstraints: Compare active queues."
             },
             {
-                "name": "Booking Scheduler Agent",
-                "role": "Hold slot at clinic with shortest wait time.",
-                "tools": ["HoldSlotDB", "CheckFees"],
-                "default_prompt": "Role: Booking Coordinator\nContext: Scheduling system.\nTask: Lock the earliest available slot for the clinic with the shortest queue.\nConstraints: Verify consultation fees fit the budget."
+                "name": "Approval Agent",
+                "role": "Doctor details aur consultation fee dikhayi jaati hai.",
+                "tools": ["CheckConsultationFee", "ValidateGatewayStatus"],
+                "default_prompt": "Role: Approval Agent\nContext: Booking validation and fee presentation.\nTask: Kya user appointment approve karta hai?\nConstraints: Ensure fee is approved by budget."
             },
             {
-                "name": "Alert Dispatcher Agent",
-                "role": "Finalize booking and set up reminder alerts.",
-                "tools": ["ConfirmBooking", "SendCalendarAlert"],
-                "default_prompt": "Role: Notification Coordinator\nContext: Confirm booking tables.\nTask: Complete booking registration, generate barcode voucher, and set SMS reminders.\nConstraints: Confirm only after validation check passes."
+                "name": "Booking Agent",
+                "role": "Slot reserve karke booking ID generate ki jaati hai.",
+                "tools": ["ScheduleSMSGate", "CreateCalendarInvite"],
+                "default_prompt": "Role: Booking Agent\nContext: Final booking system database.\nTask: Kya appointment book ki ja sakti hai?\nConstraints: Generate receipt and reminders."
             }
         ],
         "parameters": [
-            {"id": "symptom_urgency", "label": "Symptom Urgency", "type": "select", "options": ["General Consultation (Non-urgent)", "Acute Pain (Urgent Emergency)"], "default": "General Consultation (Non-urgent)"},
-            {"id": "max_distance", "label": "Max Distance Allowed", "type": "select", "options": ["Within 5 km", "Within 15 km"], "default": "Within 5 km"},
-            {"id": "fee_budget", "label": "Max Consultation Fee (₹)", "type": "slider", "options": [300, 1500, 700], "default": 700}
+            {"id": "illness", "label": "Patient Symptoms", "type": "select", "options": ["Fever", "Toothache", "Fracture (Emergency)"], "default": "Fever"},
+            {"id": "time", "label": "Preferred Time", "type": "select", "options": ["Morning (09:00 - 12:00)", "Afternoon (13:00 - 17:00)"], "default": "Morning (09:00 - 12:00)"},
+            {"id": "budget", "label": "Max Consultation Budget (₹)", "type": "slider", "options": [200, 1500, 600], "default": 600}
         ]
     },
-    "house_cleaning": {
-        "title": "House Cleaning Booking",
-        "icon": "🧹",
-        "desc": "Lists house cleaning providers, compares cost and ratings, and schedules the best value service under budget.",
-        "default_query": "Book house cleaning at lowest cost.",
+    "hotel": {
+        "title": "Hotel Room Extension Assistant",
+        "icon": "🏨",
+        "desc": "Yahaan user apna hotel stay 2 din aur extend karna chahta hai.",
+        "default_query": "I want to stay two more days in my room.",
         "agents": [
             {
-                "name": "Cleaning Finder Agent",
-                "role": "List cleaning agencies and customer reviews.",
-                "tools": ["ListCleaningServices", "FetchRatings"],
-                "default_prompt": "Role: Service Finder\nContext: Local listings map.\nTask: Search local cleaning agencies and download review ratings.\nConstraints: Return active listings and ratings only."
+                "name": "Booking Verification Agent",
+                "role": "Booking database verify kiya jaata hai.",
+                "tools": ["GetStayDetails", "VerifyIdentity"],
+                "default_prompt": "Role: Booking Verification Agent\nContext: Hotel PMS systems.\nTask: Kya booking valid hai?\nConstraints: Confirm registration status."
             },
             {
-                "name": "Quote Estimator Agent",
-                "role": "Calculate pricing estimates for cleaning scopes.",
-                "tools": ["GetCleaningQuotes", "EvaluateValueScore"],
-                "default_prompt": "Role: Quote Estimator\nContext: Cleaning service rate cards.\nTask: Fetch price quotes for the requested cleaning package and room count.\nConstraints: Exclude agencies with customer rating below 4.0 stars."
+                "name": "Room Availability Agent",
+                "role": "Hotel inventory check ki jaati hai.",
+                "tools": ["CheckRoomInventory", "FindAlternativeRoom"],
+                "default_prompt": "Role: Room Availability Agent\nContext: Room schedules.\nTask: Kya same room agle 2 din available hai?\nConstraints: Verify back-to-back reservations."
             },
             {
-                "name": "Value Analyst Agent",
-                "role": "Select best value provider under user budget.",
-                "tools": ["LockCleaningSlot", "ValidatePrice"],
-                "default_prompt": "Role: Budget Matcher\nContext: Customer price constraints.\nTask: Select the cheapest available quote under the budget limit.\nConstraints: Abort step if all quotes exceed budget limits."
+                "name": "Payment Agent",
+                "role": "Room charges, tax aur service charges calculate kiye jaate hain.",
+                "tools": ["CalculateExtensionCost", "ChargeCreditCard"],
+                "default_prompt": "Role: Payment Agent\nContext: Folio calculation tools.\nTask: Additional charge kitna hoga?\nConstraints: Calculate total additional charge."
             },
             {
-                "name": "Service Scheduler Agent",
-                "role": "Schedule booking slot and issue service receipt.",
-                "tools": ["ConfirmCleanSchedule", "GenerateReceipt"],
-                "default_prompt": "Role: Scheduler Coordinator\nContext: Cleaning booking database.\nTask: Confirm cleaning appointment, lock calendar date, and dispatch payment invoice receipt.\nConstraints: Output receipt details and timing slot."
+                "name": "Confirmation Agent",
+                "role": "Payment verify karke booking update ki jaati hai.",
+                "tools": ["ExtendKeycardAccess", "UpdateCheckOutDatePMS"],
+                "default_prompt": "Role: Confirmation Agent\nContext: Keycard RFID and checkout dates database.\nTask: Kya booking extend ho sakti hai?\nConstraints: Output extended checkout details."
             }
         ],
         "parameters": [
-            {"id": "clean_scope", "label": "Cleaning Scope", "type": "select", "options": ["Standard 2-BHK Cleaning", "Deep Home Sanitization"], "default": "Standard 2-BHK Cleaning"},
-            {"id": "customer_rating_min", "label": "Minimum Provider Rating", "type": "select", "options": ["4.2+ Stars", "4.7+ Stars"], "default": "4.2+ Stars"},
-            {"id": "budget_limit", "label": "Max Budget (₹)", "type": "slider", "options": [1000, 5000, 2000], "default": 2000}
+            {"id": "room_num", "label": "Current Room Number", "type": "text", "default": "Room 304"},
+            {"id": "extend_days", "label": "Extension Days", "type": "slider", "options": [1, 7, 2], "default": 2},
+            {"id": "room_available", "label": "Current Room Available for Extension", "type": "checkbox", "default": True},
+            {"id": "card_declined", "label": "Simulate Credit Card Decline", "type": "checkbox", "default": False}
         ]
     },
-    "sleep_routine": {
-        "title": "Sleep Routine Planner",
-        "icon": "💤",
-        "desc": "Analyzes sleep history, calculates cycle bedtime, designs wind-down routines, and schedules alerts.",
-        "default_query": "Design sleep routine to help me feel refreshed by 7:00 AM.",
+    "commute": {
+        "title": "Daily Commute Management",
+        "icon": "🚗",
+        "desc": "User office 9 baje se pehle minimum travel time mein pahunchna chahta hai.",
+        "default_query": "How can I reach office on time before 9 AM today?",
         "agents": [
             {
-                "name": "Pattern Analyzer Agent",
-                "role": "Evaluate sleep patterns and track deficit.",
-                "tools": ["ReadSleepHistory", "IdentifyDeficits"],
-                "default_prompt": "Role: Sleep Pattern Analyst\nContext: User smart band historical logs.\nTask: Review average sleep durations and pinpoint sleep deficit hours.\nConstraints: Show analysis summaries only."
+                "name": "Traffic Monitoring Agent",
+                "role": "Live traffic data analyze kiya jaata hai.",
+                "tools": ["GetLiveTrafficAlerts", "QueryIncidentDB"],
+                "default_prompt": "Role: Traffic Monitoring Agent\nContext: Live GPS coordinates.\nTask: Current traffic condition kya hai?\nConstraints: Report blocks or accidents."
             },
             {
-                "name": "Bedtime Calculator Agent",
-                "role": "Compute optimal bedtime cycles for target wake time.",
-                "tools": ["CalculateSleepCycles", "SetBedtimeAlert"],
-                "default_prompt": "Role: Sleep Cycle Calculator\nContext: 90-minute sleep cycle standards.\nTask: Calculate optimal bedtime to complete targeted sleep cycles before target wake time.\nConstraints: Factor in 15 mins average latency to fall asleep."
+                "name": "Route Optimization Agent",
+                "role": "Sabhi routes ki ETA compare ki jaati hai.",
+                "tools": ["ComputeShortestPath", "EstimateTravelTime"],
+                "default_prompt": "Role: Route Optimization Agent\nContext: Route networks.\nTask: Kya koi faster route available hai?\nConstraints: Compare all routes."
             },
             {
-                "name": "Routine Designer Agent",
-                "role": "Draft healthy wind-down pre-sleep routines.",
-                "tools": ["DraftRoutine", "FormatWindDownSteps"],
-                "default_prompt": "Role: Sleep Routine Planner\nContext: Sleep hygiene guidelines.\nTask: Outline custom pre-sleep wind-down activities. Recommend adjustment for bad habits like gaming.\nConstraints: Avoid screen time in standard recommendations."
+                "name": "Transport Booking Agent",
+                "role": "User preference aur cab availability check ki jaati hai.",
+                "tools": ["RequestCabRide", "ConfirmRideCost"],
+                "default_prompt": "Role: Transport Booking Agent\nContext: Rideshare API integrations.\nTask: Kya transport book karna hai?\nConstraints: Lock fare prices."
             },
             {
-                "name": "Alert Scheduler Agent",
-                "role": "Configure bedtime wind-down alerts and reminders.",
-                "tools": ["ScheduleBedtimeAlerts", "ConnectFitnessTracker"],
-                "default_prompt": "Role: Notification Setup Coordinator\nContext: Phone notification settings.\nTask: Program daily bedtime alerts, turn-off reminders, and morning wake-up alarms.\nConstraints: Output active routine parameters."
+                "name": "Notification Agent",
+                "role": "Live ETA aur alerts send kiye jaate hain.",
+                "tools": ["SendSMSAlert", "GetLiveCabLocation"],
+                "default_prompt": "Role: Notification Agent\nContext: Alert system.\nTask: User ko updates kaise milenge?\nConstraints: Send vehicle plate and ETA."
             }
         ],
         "parameters": [
-            {"id": "target_wake_time", "label": "Target Wake-up Time", "type": "select", "options": ["06:00 AM", "07:00 AM", "08:00 AM"], "default": "07:00 AM"},
-            {"id": "target_cycles", "label": "Desired Sleep Cycles", "type": "slider", "options": [4, 6, 5], "default": 5},
-            {"id": "pre_sleep_habit", "label": "Pre-sleep Habit", "type": "select", "options": ["Reading & Dim Lights", "Gaming & Social Media (High Alert)"], "default": "Reading & Dim Lights"}
+            {"id": "traffic_congestion", "label": "Route A Traffic Level", "type": "select", "options": ["Heavy Congestion (Accident)", "Moderate Traffic", "Light Traffic"], "default": "Heavy Congestion (Accident)"},
+            {"id": "cab_type", "label": "Cab Category Choice", "type": "select", "options": ["Prime Sedan", "Mini Eco", "Auto Rickshaw"], "default": "Prime Sedan"}
+        ]
+    },
+    "skill": {
+        "title": "Skill Development Assistant",
+        "icon": "🎯",
+        "desc": "User agle 12 months mein Data Scientist banna chahta hai.",
+        "default_query": "I want to become a Data Scientist in the next 12 months.",
+        "agents": [
+            {
+                "name": "Career Analysis Agent",
+                "role": "Goal ko analyze karke required role identify kiya jaata.",
+                "tools": ["FetchCareerProfile", "QuerySkillDatabase"],
+                "default_prompt": "Role: Career Analysis Agent\nContext: Career goal mapping.\nTask: User ka career goal kya hai?\nConstraints: Identify expected certifications."
+            },
+            {
+                "name": "Skill Gap Agent",
+                "role": "Current skills aur required skills compare ki jaati hain.",
+                "tools": ["AssessStudentProfile", "ListMissingSkills"],
+                "default_prompt": "Role: Skill Gap Agent\nContext: Comparing student background against profile.\nTask: Kaun si skills missing hain?\nConstraints: Group into skill levels."
+            },
+            {
+                "name": "Course Recommendation Agent",
+                "role": "Best rated courses search aur rank kiye jaate hain.",
+                "tools": ["SearchCourseCatalogs", "MatchCertifications"],
+                "default_prompt": "Role: Course Recommendation Agent\nContext: Course catalogs.\nTask: Kaunse courses help karenge?\nConstraints: Recommend high-rated learning paths."
+            },
+            {
+                "name": "Progress Tracking Agent",
+                "role": "Learning plan aur milestones create kiye jaate hain.",
+                "tools": ["GenerateSyllabusChecklist", "ScheduleWeeklyReminders"],
+                "default_prompt": "Role: Progress Tracking Agent\nContext: Weekly planning metrics.\nTask: Progress kaise monitor hogi?\nConstraints: Generate syllabus checkpoints."
+            }
+        ],
+        "parameters": [
+            {"id": "career_goal", "label": "Target Career Goal", "type": "select", "options": ["Data Scientist", "Full-Stack Web Developer", "Cloud Solutions Architect"], "default": "Data Scientist"},
+            {"id": "known_skills", "label": "Skills You Already Know", "type": "select", "options": ["None (Beginner)", "Basic Python & SQL", "JavaScript & HTML5", "Linux & Shell Scripting"], "default": "Basic Python & SQL"}
+        ]
+    },
+    "vacation": {
+        "title": "Vacation Planning Assistant",
+        "icon": "🌴",
+        "desc": "User ko ₹30,000 ke andar 5 din ki vacation plan karni hai.",
+        "default_query": "Plan a 5-day vacation under ₹30,000.",
+        "agents": [
+            {
+                "name": "Destination Recommendation Agent",
+                "role": "Popular destinations aur total cost compare ki jaati hai.",
+                "tools": ["FilterDestinationsByPrice", "QueryWeatherAPI"],
+                "default_prompt": "Role: Destination Recommendation Agent\nContext: Flight and hotel cost listings.\nTask: Budget mein kaunsi destinations possible hain?\nConstraints: Suggest options within total budget."
+            },
+            {
+                "name": "Budget Planning Agent",
+                "role": "Travel, stay aur food cost analyze ki jaati hai.",
+                "tools": ["EstimateHotelCosts", "SearchCheapFlights"],
+                "default_prompt": "Role: Budget Planning Agent\nContext: Pricing indices.\nTask: Sabse best value destination kaunsi hai?\nConstraints: Factor in hotel, flights, food."
+            },
+            {
+                "name": "Booking Agent",
+                "role": "Availability check karke booking ki jaati hai.",
+                "tools": ["PlaceTemporaryHoldHotel", "LockFlightSeat"],
+                "default_prompt": "Role: Booking Agent\nContext: Booking systems.\nTask: Kya travel aur hotel book kiya ja sakta hai?\nConstraints: Secure reservations."
+            },
+            {
+                "name": "Itinerary Agent",
+                "role": "Attractions aur travel time optimize kiya jaata hai.",
+                "tools": ["GetLocalActivities", "CompileItineraryPdf"],
+                "default_prompt": "Role: Itinerary Agent\nContext: Day-wise scheduling.\nTask: Day-wise plan kya hoga?\nConstraints: Optimize activities and sightseeing."
+            }
+        ],
+        "parameters": [
+            {"id": "budget_val", "label": "Vacation Budget Limit (₹)", "type": "slider", "options": [15000, 80000, 30000], "default": 30000},
+            {"id": "duration", "label": "Vacation Duration", "type": "select", "options": ["3 Days", "5 Days", "7 Days"], "default": "5 Days"},
+            {"id": "travelers", "label": "Number of Travelers", "type": "slider", "options": [1, 5, 2], "default": 2}
         ]
     }
 }
@@ -659,7 +547,7 @@ def get_agent_instruction(scenario_key, agent_name):
 
 def run_agent_simulation_step(scenario_key, step_num, params, user_q):
     """
-    Simulates execution for a single agent. Returns (log_lines, chat_msg, state_mutations, success_bool)
+    Simulates execution for a single agent. Returns (log_lines, chat_msg, success_bool)
     """
     scenario = SCENARIOS[scenario_key]
     agent = scenario["agents"][step_num]
@@ -671,10 +559,6 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
     state_mutations = {}
     success = True
     
-    # Extract prompt instructions context
-    p_lines = [l.strip() for l in prompt.split('\n') if ':' in l]
-    prompt_hints = " ".join(p_lines)
-    
     # --------------------------------------------------
     # Doctor Scenario Simulation Logic
     # --------------------------------------------------
@@ -684,84 +568,51 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
         budget = params.get("budget", 600)
         
         if step_num == 0:  # Doctor Search Agent
-            log_lines.append(f"[AGENT: {agent_name}] Read System Instructions: {prompt_hints[:80]}...")
-            log_lines.append(f"[AGENT: {agent_name}] Input parsed: illness='{illness}', query='{user_q}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool MatchSymptoms(illness='{illness}')...")
-            
-            if illness == "Fever":
-                doctors = [{"name": "Dr. Sharma", "specialty": "General Physician", "dist": "1.2km", "fee": 500},
-                           {"name": "Dr. Verma", "specialty": "General Medicine", "dist": "3.5km", "fee": 400}]
-            elif illness == "Toothache":
-                doctors = [{"name": "Dr. Alok (Dentist)", "specialty": "Orthodontics", "dist": "2.1km", "fee": 600}]
-            else: # Fracture
-                doctors = [{"name": "Dr. Kapoor (Ortho)", "specialty": "Orthopedics", "dist": "4.8km", "fee": 1000}]
-            
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CalculateProximity()... Found {len(doctors)} matching clinics nearby.")
-            doc_names = ", ".join([d["name"] for d in doctors])
-            log_lines.append(f"[AGENT: {agent_name}] Output response: {doc_names} are available nearby.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kal evening mein kaunse doctors available hain?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Location aur specialty ke basis par doctors search kiye jaate hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🩺",
-                "content": f"Hi! Based on your symptom of {illness.lower()}, I searched nearby specialists. I found: " +
-                           ", ".join([f"{d['name']} ({d['specialty']} - {d['dist']})" for d in doctors]) + ". Passing this to booking."
+                "content": "4 doctors available mile."
             }
-            state_mutations = {"matched_doctors": doctors, "illness": illness, "time_pref": time_pref}
+            state_mutations = {"matched_doctors_count": 4, "illness": illness, "time_pref": time_pref}
             
-        elif step_num == 1:  # Appointment Booking Agent
-            prev_doctors = st.session_state.shared_state.get("matched_doctors", [])
-            log_lines.append(f"[AGENT: {agent_name}] Reading state matched_doctors: {prev_doctors}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GetAvailabilityList()...")
-            
-            selected_doc = prev_doctors[0] if prev_doctors else {"name": "Dr. Sharma", "fee": 500}
-            slot = "10:00 AM" if "Morning" in time_pref else "3:00 PM"
-            
-            log_lines.append(f"[AGENT: {agent_name}] Lock slot at {slot} for {selected_doc['name']}.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool ReserveSlotDB()... Slot locked temporarily.")
-            
+        elif step_num == 1:  # Slot Selection Agent
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kis slot mein sabse kam waiting time hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Appointment queues compare ki jaati hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "📅",
-                "content": f"I verified schedules for the matching doctors. {selected_doc['name']} has an open slot tomorrow at {slot}. I've placed a temporary hold on it. Handing over to Payment Agent."
+                "content": "6 PM slot available hai with only 10 minutes wait."
             }
-            state_mutations = {"selected_doctor": selected_doc, "booking_slot": slot, "booking_status": "Temporarily Held"}
+            state_mutations = {"booking_slot": "6:00 PM", "waiting_time": "10 mins", "booking_status": "Slot Checked"}
             
-        elif step_num == 2:  # Payment Agent
-            selected_doc = st.session_state.shared_state.get("selected_doctor", {"name": "Dr. Sharma", "fee": 500})
-            fee = selected_doc.get("fee", 500)
-            log_lines.append(f"[AGENT: {agent_name}] Reading doctor consultation fee: ₹{fee}")
-            log_lines.append(f"[AGENT: {agent_name}] Budget limit set by user: ₹{budget}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CheckConsultationFee()...")
-            
+        elif step_num == 2:  # Approval Agent
+            fee = 500
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya user appointment approve karta hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Doctor details aur consultation fee dikhayi jaati hai.")
             if fee > budget:
-                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Fee ₹{fee} exceeds patient budget limit of ₹{budget}!")
-                log_lines.append(f"[AGENT: {agent_name}] Check-in aborted. Booking rejected.")
+                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Fee ₹{fee} exceeds budget ₹{budget}!")
                 chat_msg = {
                     "sender": agent_name, "avatar": "💳",
-                    "content": f"Warning! {selected_doc['name']}'s consultation fee is ₹{fee}, which exceeds your budget limit of ₹{budget}. Transaction declined. Reservation cancelled."
+                    "content": f"Warning! Consultation fee is ₹{fee}, which exceeds your budget limit of ₹{budget}. User rejected."
                 }
-                state_mutations = {"payment_verified": False, "booking_status": "Declined - Budget Exceeded", "error": "Insufficient Budget"}
+                state_mutations = {"payment_verified": False, "booking_status": "Failed", "error": "Budget Exceeded"}
                 success = False
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Budget check passed. Calling ValidateGatewayStatus()... Gateway OK.")
-                log_lines.append(f"[AGENT: {agent_name}] Transaction verified: ₹{fee} consultation fee processed.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "💳",
-                    "content": f"Payment check successful! Verified consultation fee of ₹{fee}. Payment request generated and validated. Handing to Reminder Agent."
+                    "content": "User approved."
                 }
-                state_mutations = {"payment_verified": True, "fee_charged": fee, "booking_status": "Payment Verified"}
+                state_mutations = {"payment_verified": True, "fee_charged": fee, "booking_status": "Approved"}
                 
-        elif step_num == 3:  # Reminder Agent
-            doc = st.session_state.shared_state.get("selected_doctor", {"name": "Dr. Sharma"})
-            slot = st.session_state.shared_state.get("booking_slot", "10:00 AM")
-            log_lines.append(f"[AGENT: {agent_name}] Reading booking parameters for reminder template.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CreateCalendarInvite()... Calendar ICS file built.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool ScheduleSMSGate()... Alert queued for tomorrow 1 hour before {slot}.")
-            
+        elif step_num == 3:  # Booking Agent
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya appointment book ki ja sakti hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Slot reserve karke booking ID generate ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🔔",
-                "content": f"I've registered calendar alerts and scheduled a SMS reminder for your appointment with {doc['name']} at {slot} tomorrow (1 hour lead time). All checks complete!"
+                "content": "Appointment confirmed."
             }
-            state_mutations = {"reminder_scheduled": True, "reminder_lead_time": "1 hour", "booking_status": "Confirmed"}
-            
+            state_mutations = {"booking_confirmed": True, "booking_status": "Confirmed", "booking_id": "APT-58291"}
+
     # --------------------------------------------------
     # Library Scenario Simulation Logic
     # --------------------------------------------------
@@ -771,76 +622,56 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
         borrow_limit = params.get("borrow_limit", 1)
         
         if step_num == 0:  # Book Search Agent
-            log_lines.append(f"[AGENT: {agent_name}] Searching book index database for: '{book_title}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool QueryCatalogDB()... Catalog match found.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kaunsi library mein yeh book available hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Agent library catalog aur digital database search karta hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🔍",
-                "content": f"I searched the library archives. Yes, the book '{book_title}' exists in our database. Handing over to check stock levels."
+                "content": "AI Fundamentals book Central Library mein mil gayi."
             }
             state_mutations = {"book_title": book_title, "catalog_exists": True}
             
         elif step_num == 1:  # Availability Agent
-            log_lines.append(f"[AGENT: {agent_name}] Checking inventory logs for '{book_title}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CheckShelfStock()...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya book abhi available hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Current issue records aur reservations check kiye jaate hain.")
             if not in_stock:
-                log_lines.append(f"[AGENT: {agent_name}] [ALERT] Shelf inventory count is 0. Copy is checked out.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "📦",
-                    "content": f"I checked the shelf. Unfortunately, all physical copies of '{book_title}' are currently borrowed by other students. I'll forward this to Reservation to queue you on the waitlist."
+                    "content": "No copies available on the shelf. Adding to waitlist."
                 }
                 state_mutations = {"copies_available": 0, "waitlist_needed": True}
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Copy located on Shelf Row B, Shelf 4.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "📦",
-                    "content": f"Good news! One physical copy of '{book_title}' is available on the shelf. Handing over to lock the reservation."
+                    "content": "2 copies available hain."
                 }
-                state_mutations = {"copies_available": 1, "waitlist_needed": False}
+                state_mutations = {"copies_available": 2, "waitlist_needed": False}
                 
         elif step_num == 2:  # Reservation Agent
-            waitlist = st.session_state.shared_state.get("waitlist_needed", False)
-            log_lines.append(f"[AGENT: {agent_name}] Checking student active borrow limit: {borrow_limit} books")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CheckUserBorrowLimit()...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya student ke liye book reserve ki ja sakti hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Student eligibility aur borrowing limit verify ki jaati hai.")
             if borrow_limit >= 3:
-                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Student has borrowed {borrow_limit} books (Limit: 3). Access blocked.")
+                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Student has borrowed {borrow_limit} books (Limit: 3).")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🔐",
-                    "content": f"Reservation failed. You currently have {borrow_limit} books checked out, reaching the library limit of 3 active loans. Please return a book to continue."
+                    "content": "Reservation failed. Student borrowing limit exceeded."
                 }
-                state_mutations = {"reservation_locked": False, "reservation_status": "Blocked - Limit Reached", "error": "Borrow Limit Exceeded"}
+                state_mutations = {"reservation_locked": False, "reservation_status": "Blocked - Limit Reached", "error": "Limit Exceeded"}
                 success = False
             else:
-                log_lines.append(f"[AGENT: {agent_name}] User limit check passed. Calling HoldCopyDB()...")
-                if waitlist:
-                    log_lines.append(f"[AGENT: {agent_name}] User added to Book Waitlist at position #1.")
-                    chat_msg = {
-                        "sender": agent_name, "avatar": "🔐",
-                        "content": f"Since physical stock is out, I have placed your student ID #2948 in Waitlist Position 1 for '{book_title}'."
-                    }
-                    state_mutations = {"reservation_locked": True, "reservation_status": "Queued on Waitlist", "waitlist_pos": 1}
-                else:
-                    log_lines.append(f"[AGENT: {agent_name}] Physical copy locked under reservation ID 58291.")
-                    chat_msg = {
-                        "sender": agent_name, "avatar": "🔐",
-                        "content": f"I have locked the available physical copy of '{book_title}' and reserved it under your student account. Forwarding to Notification Agent."
-                    }
-                    state_mutations = {"reservation_locked": True, "reservation_status": "Reserved", "hold_id": 58291}
-                    
+                chat_msg = {
+                    "sender": agent_name, "avatar": "🔐",
+                    "content": "Reservation successful."
+                }
+                state_mutations = {"reservation_locked": True, "reservation_status": "Reserved", "hold_id": 58291}
+                
         elif step_num == 3:  # Notification Agent
-            status = st.session_state.shared_state.get("reservation_status", "Reserved")
-            hold_id = st.session_state.shared_state.get("hold_id", "Waitlist")
-            log_lines.append(f"[AGENT: {agent_name}] Generating pickup code / barcode token.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GenerateBarcode()... Token: lib_hold_{hold_id}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool DispatchEmail()... Sent confirmation notification.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Student ko confirmation kaise milega?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Reservation ID generate karke email/SMS bheja jaata hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "✉️",
-                "content": f"Hold transaction complete! A pickup slip showing status '{status}' and barcode ID lib_hold_{hold_id} has been emailed to your student address. Pickup window is active."
+                "content": "Pickup details student ko send kar di gayi."
             }
-            state_mutations = {"notification_sent": True, "notification_type": "Email Slip", "barcode": f"LIB-HOLD-{hold_id}"}
+            state_mutations = {"notification_sent": True, "notification_type": "SMS/Email", "barcode": "LIB-HOLD-58291", "reservation_status": "Reserved"}
 
     # --------------------------------------------------
     # Flight Scenario Simulation Logic
@@ -850,145 +681,111 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
         seat_pref = params.get("seat_pref", "Window")
         
         if step_num == 0:  # Flight Verification Agent
-            log_lines.append(f"[AGENT: {agent_name}] Verifying booking database records.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool QueryPnrDB(pnr='AI-720')...")
-            
-            if ticket_valid == "Invalid PNR / Cancelled":
-                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Booking record for PNR: AI-720 shows status: CANCELLED/VOID.")
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya ticket check-in ke liye valid hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: PNR, flight date aur check-in window verify ki jaati hai.")
+            if ticket_valid != "Confirmed":
+                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Ticket status is invalid.")
                 chat_msg = {
-                    "sender": agent_name, "avatar": "🛂",
-                    "content": "Check-in failed. I could not locate a valid ticket under PNR AI-720. Your booking shows as cancelled or unconfirmed."
+                    "sender": agent_name, "avatar": "✈️",
+                    "content": "Check-in rejected. Booking status is invalid."
                 }
-                state_mutations = {"ticket_confirmed": False, "status": "Failed - Invalid PNR", "error": "Invalid PNR"}
+                state_mutations = {"ticket_verified": False, "checkin_status": "Failed", "error": "Invalid Ticket"}
                 success = False
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Match located. PNR AI-720 is confirmed for Flight AI-502 tomorrow.")
                 chat_msg = {
-                    "sender": agent_name, "avatar": "🛂",
-                    "content": "Ticket verified! I located confirmed booking PNR AI-720. Passenger is cleared for check-in. Forwarding to Seat Selection."
+                    "sender": agent_name, "avatar": "✈️",
+                    "content": "Booking confirmed."
                 }
-                state_mutations = {"ticket_confirmed": True, "pnr": "AI-720", "flight_num": "AI-502", "route": "DEL → BOM"}
+                state_mutations = {"ticket_verified": True, "checkin_status": "Verified"}
                 
         elif step_num == 1:  # Seat Selection Agent
-            pref = seat_pref
-            log_lines.append(f"[AGENT: {agent_name}] Fetching layout mapping. Calling tool GetCabinMap()...")
-            log_lines.append(f"[AGENT: {agent_name}] Target preference set to: '{pref}' seat")
-            
-            if pref == "Window":
-                seat = "18A"
-            elif pref == "Aisle":
-                seat = "12C"
-            else:
-                seat = "15D (Emergency Exit)"
-                
-            log_lines.append(f"[AGENT: {agent_name}] Seat {seat} is open. Calling tool LockSeatAPI()... Locked.")
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kaunsi window seat available hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Seat map analyze karke best window seat choose ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "💺",
-                "content": f"I checked the layout for flight AI-502. Your preferred '{pref}' seat was available, and I have assigned you seat {seat}. Handing off to confirm check-in."
+                "content": "Window Seat 18A select ho gayi."
             }
-            state_mutations = {"assigned_seat": seat, "seat_class": "Economy"}
+            state_mutations = {"assigned_seat": "18A", "seat_type": "Window"}
             
-        elif step_num == 2:  # Check-in Agent
-            seat = st.session_state.shared_state.get("assigned_seat", "18A")
-            log_lines.append(f"[AGENT: {agent_name}] Assembling check-in manifest data package.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool SubmitManifest()... Flight manifest updated successfully.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CompleteRegistration()... Digital registration complete.")
-            
+        elif step_num == 2:  # Check-In Agent
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya online check-in complete ho sakta hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Passenger details aur baggage allowance verify kiya jaata hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "✅",
-                "content": f"Check-in complete! Passenger checked into manifest with seat {seat}. Generating boarding pass next."
+                "content": "Check-in successful."
             }
-            state_mutations = {"check_in_complete": True, "check_in_timestamp": "2026-06-11 12:46:00"}
+            state_mutations = {"checkin_completed": True, "checkin_status": "Successful"}
             
         elif step_num == 3:  # Notification Agent
-            seat = st.session_state.shared_state.get("assigned_seat", "18A")
-            pnr = st.session_state.shared_state.get("pnr", "AI-720")
-            flight = st.session_state.shared_state.get("flight_num", "AI-502")
-            route = st.session_state.shared_state.get("route", "DEL → BOM")
-            
-            log_lines.append(f"[AGENT: {agent_name}] Creating digital boarding pass card.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GenerateQRCode()... Pass generated.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool SendSMSAlert()... Pass delivered to mobile.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Boarding pass kaise deliver hoga?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Boarding pass PDF generate karke email aur app mein send kiya jaata hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "📱",
-                "content": f"Boarding pass issued for {route}! I've generated your QR code and texted your mobile pass. Safe travels!"
+                "content": "Boarding pass successfully send ho gaya."
             }
-            state_mutations = {"boarding_pass_issued": True, "pass_qr_code": f"QR-PASS-{pnr}-{seat}"}
+            state_mutations = {"boarding_pass_sent": True, "delivery_channel": "Email & App"}
 
     # --------------------------------------------------
     # Hotel Scenario Simulation Logic
     # --------------------------------------------------
     elif scenario_key == "hotel":
         room_num = params.get("room_num", "Room 304")
-        extend_days = params.get("extend_days", 2)
         room_available = params.get("room_available", True)
         card_declined = params.get("card_declined", False)
+        extend_days = params.get("extend_days", 2)
         
         if step_num == 0:  # Booking Verification Agent
-            log_lines.append(f"[AGENT: {agent_name}] Fetching current booking folio for: '{room_num}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GetStayDetails()... Match found.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya booking valid hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Booking database verify kiya jaata hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🏨",
-                "content": f"Verified! Guest in room {room_num} is active. Current checkout is tomorrow morning. Passing to Room Availability Agent."
+                "content": "Active booking found."
             }
-            state_mutations = {"room_num": room_num, "checkout_current": "Tomorrow morning", "guest_name": "Arpit Rawat"}
+            state_mutations = {"booking_valid": True, "guest_name": "Arpit Rawat"}
             
         elif step_num == 1:  # Room Availability Agent
-            log_lines.append(f"[AGENT: {agent_name}] Checking PMS room occupancy calendar for {room_num}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CheckRoomInventory()...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya same room agle 2 din available hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Hotel inventory check ki jaati hai.")
             if not room_available:
-                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ALERT] {room_num} is booked by another guest starting tomorrow.")
-                log_lines.append(f"[AGENT: {agent_name}] Calling tool FindAlternativeRoom()... Room 412 is open.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🧹",
-                    "content": f"Your current room ({room_num}) is already reserved by another party tomorrow. However, I checked alternate inventory, and we can move you to Room 412 (same category) for the extra {extend_days} days. Proceeding to payment."
+                    "content": f"Room {room_num} is occupied. Alternate room 412 is available."
                 }
                 state_mutations = {"room_available_same": False, "target_room": "Room 412", "daily_rate": 2000}
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Current room is open for extension. No conflicting reservations.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🧹",
-                    "content": f"Excellent! {room_num} is free for the next {extend_days} days. I'll extend your stay in the same room. Forwarding to Billing Agent."
+                    "content": "Same room available hai."
                 }
                 state_mutations = {"room_available_same": True, "target_room": room_num, "daily_rate": 2000}
                 
         elif step_num == 2:  # Payment Agent
-            t_room = st.session_state.shared_state.get("target_room", room_num)
-            rate = st.session_state.shared_state.get("daily_rate", 2000)
+            rate = 2000
             total_bill = rate * extend_days
-            log_lines.append(f"[AGENT: {agent_name}] Calculating extension billing: {extend_days} days @ ₹{rate}/night = ₹{total_bill}")
-            log_lines.append(f"[AGENT: {agent_name}] Requesting credit authorization for ₹{total_bill}...")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool ChargeCreditCard()...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Additional charge kitna hoga?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Room charges, tax aur service charges calculate kiye jaate hain.")
             if card_declined:
                 log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Credit Card processor returned status: DECLINED.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "💵",
-                    "content": f"Credit Card decline! We tried to charge ₹{total_bill} to your card on file, but it was declined. Stay extension aborted. Please visit the reception counter."
+                    "content": f"Credit Card decline! Total additional charge ₹{total_bill}. Stay extension aborted."
                 }
                 state_mutations = {"payment_processed": False, "error": "Payment Declined", "checkout_status": "Overdue tomorrow"}
                 success = False
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Payment status: AUTHORIZED. Folio balance updated.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "💵",
-                    "content": f"Payment of ₹{total_bill} processed and billed to your room folio. Forwarding to Manager to complete database updates."
+                    "content": f"Total additional charge ₹{total_bill}."
                 }
                 state_mutations = {"payment_processed": True, "total_charged": total_bill}
                 
         elif step_num == 3:  # Confirmation Agent
             t_room = st.session_state.shared_state.get("target_room", room_num)
-            days = extend_days
-            log_lines.append(f"[AGENT: {agent_name}] Updating booking checkout bounds in PMS database.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool UpdateCheckOutDatePMS()... Database checkout updated.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool ExtendKeycardAccess()... Programming key card commands sent.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya booking extend ho sakta hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Payment verify karke booking update ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🔑",
-                "content": f"Stay extension finalized! Room check-out date updated by {days} days. Your keycard access for {t_room} has been electronically extended. Enjoy your stay!"
+                "content": "Stay successfully extended."
             }
             state_mutations = {"keycard_extended": True, "final_room": t_room, "status": "Stay Extended Successful"}
 
@@ -1000,175 +797,110 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
         cab_type = params.get("cab_type", "Prime Sedan")
         
         if step_num == 0:  # Traffic Monitoring Agent
-            log_lines.append(f"[AGENT: {agent_name}] Fetching city congestion telemetry mapping.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GetLiveTrafficAlerts()...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Current traffic condition kya hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Live traffic data analyze kiya jaata hai.")
             if congestion == "Heavy Congestion (Accident)":
-                log_lines.append(f"[AGENT: {agent_name}] [ALERT] Major accident on Highway Route A. 35 mins delay.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🚦",
-                    "content": "Traffic alert! I scanned your typical Route A. There's heavy congestion and a block due to an accident, causing a 35-minute delay. Handing to Route Optimizer."
+                    "content": "Route A par heavy traffic hai."
                 }
                 state_mutations = {"route_a_traffic": "Blocked", "route_a_time": 55}
             elif congestion == "Moderate Traffic":
-                log_lines.append(f"[AGENT: {agent_name}] Standard slow traffic on Route A. 15 mins delay.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🚦",
-                    "content": "Route A is showing moderate commuter rush, adding about 15 minutes to your trip. Forwarding to Route Optimizer."
+                    "content": "Route A has moderate traffic."
                 }
                 state_mutations = {"route_a_traffic": "Slow", "route_a_time": 35}
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Route A is clear. Normal transit times.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🚦",
-                    "content": "Excellent. Route A has light traffic today. Travel time is clear. Passing details on."
+                    "content": "Route A is clear."
                 }
                 state_mutations = {"route_a_traffic": "Clear", "route_a_time": 20}
                 
         elif step_num == 1:  # Route Optimization Agent
-            route_a_state = st.session_state.shared_state.get("route_a_traffic", "Blocked")
             a_time = st.session_state.shared_state.get("route_a_time", 55)
-            log_lines.append(f"[AGENT: {agent_name}] Reading traffic inputs. Route A: {a_time} mins.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool ComputeShortestPath()... Alternative Route B analyzed.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya koi faster route available hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Sabhi routes ki ETA compare ki jaati hai.")
             if a_time > 30:
-                b_time = 25
-                log_lines.append(f"[AGENT: {agent_name}] Alternative Route B selected: saves {a_time - b_time} minutes.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🗺️",
-                    "content": f"Bypassing Route A! Route B (bypass lane) will bypass the block, taking only {b_time} minutes. Selecting Route B. Passing to Cab Booking."
+                    "content": "Route B fastest hai."
                 }
-                state_mutations = {"selected_route": "Route B (Bypass)", "commute_time_mins": b_time}
+                state_mutations = {"selected_route": "Route B", "commute_time_mins": 25}
             else:
-                log_lines.append(f"[AGENT: {agent_name}] Route A remains optimal at {a_time} minutes.")
                 chat_msg = {
                     "sender": agent_name, "avatar": "🗺️",
-                    "content": f"Route A remains the fastest path at {a_time} minutes. Staying on Route A. Passing to Cab Booking."
+                    "content": "Route A fastest hai."
                 }
-                state_mutations = {"selected_route": "Route A (Standard)", "commute_time_mins": a_time}
+                state_mutations = {"selected_route": "Route A", "commute_time_mins": a_time}
                 
         elif step_num == 2:  # Transport Booking Agent
             sel_route = st.session_state.shared_state.get("selected_route", "Route B")
-            log_lines.append(f"[AGENT: {agent_name}] Integrating rideshare APIs. Choosing cab type: {cab_type}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool RequestCabRide(route='{sel_route}')...")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya transport book karna hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: User preference aur cab availability check ki jaati hai.")
             price = 450 if "Sedan" in cab_type else (300 if "Mini" in cab_type else 150)
-            driver = "Rajesh Kumar (Rating: 4.9)"
-            plate = "DL 1CA 4829"
-            
-            log_lines.append(f"[AGENT: {agent_name}] Cab locked. Driver: {driver}, Plate: {plate}, Cost: ₹{price}")
             chat_msg = {
                 "sender": agent_name, "avatar": "🚖",
-                "content": f"Cab request successful! I have booked a {cab_type} driven by {driver} (License: {plate}) on the optimized {sel_route}. Estimated fare: ₹{price}. Passing dispatcher updates to Notifications."
+                "content": f"Cab booked via {sel_route}."
             }
-            state_mutations = {"cab_booked": True, "driver_details": driver, "license_plate": plate, "cab_fare": price}
+            state_mutations = {"cab_booked": True, "driver_details": "Rajesh Kumar (Rating: 4.9)", "license_plate": "DL 1CA 4829", "cab_fare": price}
             
         elif step_num == 3:  # Notification Agent
-            driver = st.session_state.shared_state.get("driver_details", "Rajesh Kumar")
-            plate = st.session_state.shared_state.get("license_plate", "DL 1CA 4829")
-            eta = 5
-            route = st.session_state.shared_state.get("selected_route", "Route B")
-            dur = st.session_state.shared_state.get("commute_time_mins", 25)
-            
-            log_lines.append(f"[AGENT: {agent_name}] Formatting passenger SMS alert package.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool SendSMSAlert()... SMS dispatched.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: User ko updates kaise milenge?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Live ETA aur alerts send kiye jaate hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🔔",
-                "content": f"All set! Driver {driver} is 5 mins away. Your ride route: {route} ({dur} mins travel time). Check your phone for details."
+                "content": "Updates successfully sent."
             }
-            state_mutations = {"commute_notified": True, "commute_status": "On its way", "cab_eta_mins": eta}
+            state_mutations = {"commute_notified": True, "commute_status": "On its way"}
 
     # --------------------------------------------------
     # Skill Scenario Simulation Logic
     # --------------------------------------------------
     elif scenario_key == "skill":
         goal = params.get("career_goal", "Data Scientist")
-        known = params.get("known_skills", "None (Beginner)")
+        known = params.get("known_skills", "Basic Python & SQL")
         
         if step_num == 0:  # Career Analysis Agent
-            log_lines.append(f"[AGENT: {agent_name}] Querying industry capability maps for: '{goal}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool FetchCareerProfile()... Required standards list fetched.")
-            
-            if "Data Scientist" in goal:
-                skills_needed = ["Python", "SQL Data Query", "Machine Learning Core", "Probability Statistics"]
-            elif "Web Developer" in goal:
-                skills_needed = ["HTML5 & CSS3", "JavaScript UI (React)", "NodeJS Backends", "API design"]
-            else:
-                skills_needed = ["AWS/GCP Architecture", "Docker Containers", "CI/CD Automations", "Kubernetes Scales"]
-                
-            log_lines.append(f"[AGENT: {agent_name}] Skills required: " + ", ".join(skills_needed))
+            log_lines.append(f"[AGENT: {agent_name}] Question: User ka career goal kya hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Goal ko analyze karke required role identify kiya yaata.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🎓",
-                "content": f"A target role of '{goal}' requires core competencies in: " + ", ".join(skills_needed) + ". Passing this to Skill Gap Analyst."
+                "content": f"Goal identified – {goal}."
             }
-            state_mutations = {"career_goal": goal, "required_skills": skills_needed}
+            state_mutations = {"career_goal": goal}
             
         elif step_num == 1:  # Skill Gap Agent
-            req = st.session_state.shared_state.get("required_skills", [])
-            log_lines.append(f"[AGENT: {agent_name}] Reading student profile records. Prior skills: '{known}'")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool AssessStudentProfile()...")
-            
-            # Map pre-existing skills
-            known_list = []
-            if "Python & SQL" in known:
-                known_list = ["Python", "SQL Data Query"]
-            elif "JavaScript" in known:
-                known_list = ["HTML5 & CSS3", "JavaScript UI (React)"]
-            elif "Linux" in known:
-                known_list = ["AWS/GCP Architecture"]
-                
-            gap_skills = [s for s in req if s not in known_list]
-            log_lines.append(f"[AGENT: {agent_name}] Competency Gap detected: " + ", ".join(gap_skills))
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kaun si skills missing hain?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Current skills aur required skills compare ki jaati hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "📊",
-                "content": f"Compared with your background in '{known}', the major gaps you need to master are: " + 
-                           ", ".join(gap_skills) + ". Handing off to get curriculum recommendations."
+                "content": "Python, SQL, Machine Learning aur Data Visualization missing hain."
             }
-            state_mutations = {"known_skills_list": known_list, "gap_skills_list": gap_skills}
+            state_mutations = {"missing_skills": ["Python", "SQL", "Machine Learning", "Data Visualization"]}
             
         elif step_num == 2:  # Course Recommendation Agent
-            gap = st.session_state.shared_state.get("gap_skills_list", [])
-            log_lines.append(f"[AGENT: {agent_name}] Searching matching course directories.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool SearchCourseCatalogs()... Match complete.")
-            
-            courses = []
-            for g in gap:
-                if "Python" in g:
-                    courses.append({"skill": g, "course": "Python for Data Analysis (Coursera)", "cost": "Free Audit"})
-                elif "SQL" in g:
-                    courses.append({"skill": g, "course": "Advanced SQL Databases (Udemy)", "cost": "₹499"})
-                elif "Learning" in g:
-                    courses.append({"skill": g, "course": "Introduction to Machine Learning (Andrew Ng)", "cost": "Free Audit"})
-                elif "React" in g:
-                    courses.append({"skill": g, "course": "React - The Complete Guide (Academind)", "cost": "₹499"})
-                elif "Node" in g:
-                    courses.append({"skill": g, "course": "NodeJS Backend Foundations (Coursera)", "cost": "Free"})
-                elif "Containers" in g:
-                    courses.append({"skill": g, "course": "Docker & Kubernetes Mastery", "cost": "₹499"})
-                else:
-                    courses.append({"skill": g, "course": f"Foundations of {g} (Pluralsight)", "cost": "Trial Free"})
-                    
-            log_lines.append(f"[AGENT: {agent_name}] Recommending {len(courses)} curriculum items.")
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kaunse courses help karenge?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Best rated courses search aur rank kiye jaate hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "📖",
-                "content": "I mapped out course curriculums for your skill gaps: " + 
-                           "; ".join([f"{c['skill']} → {c['course']} ({c['cost']})" for c in courses]) + ". Passing to Coach to structure path."
+                "content": "Personalized learning path recommended."
             }
-            state_mutations = {"recommended_courses": courses}
+            state_mutations = {"recommended_courses": [
+                {"skill": "Python", "course": "Python for Data Analysis", "cost": "Free Audit"},
+                {"skill": "SQL", "course": "Advanced SQL Databases", "cost": "₹499"},
+                {"skill": "Machine Learning", "course": "Introduction to Machine Learning", "cost": "Free Audit"}
+            ]}
             
         elif step_num == 3:  # Progress Tracking Agent
-            courses = st.session_state.shared_state.get("recommended_courses", [])
-            log_lines.append(f"[AGENT: {agent_name}] Compiling academic milestones worksheet.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GenerateSyllabusChecklist()... PDF syllabus created.")
-            log_lines.append(f"[AGENT: {agent_name}] Setting up study schedule reminder triggers.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Progress kaise monitor hogi?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Learning plan aur milestones create kiye jaate hain.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🏆",
-                "content": f"Personalized syllabus roadmap compiled successfully! I've scheduled weekly email reports to keep track of your goals. You're ready to start!"
+                "content": "12-month learning plan ready."
             }
-            state_mutations = {"roadmap_ready": True, "weeks_to_complete": len(courses) * 4}
+            state_mutations = {"roadmap_ready": True, "weeks_to_complete": 12}
 
     # --------------------------------------------------
     # Vacation Scenario Simulation Logic
@@ -1179,82 +911,38 @@ def run_agent_simulation_step(scenario_key, step_num, params, user_q):
         travelers = params.get("travelers", 2)
         
         if step_num == 0:  # Destination Recommendation Agent
-            log_lines.append(f"[AGENT: {agent_name}] Filtering cities with holiday weather. Budget limit: ₹{budget} for {travelers} travelers.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool FilterDestinationsByPrice()...")
-            
-            if budget < 25000:
-                dests = [{"city": "Jaipur", "avg_cost": 18000, "reason": "Affordable forts & palaces stay"},
-                         {"city": "Udaipur", "avg_cost": 22000, "reason": "Lakes & heritage walks"}]
-            else:
-                dests = [{"city": "Goa", "avg_cost": 28000, "reason": "Beaches & sea activities"},
-                         {"city": "Jaipur", "avg_cost": 18000, "reason": "Historical sight-seeing tour"}]
-                         
-            log_lines.append(f"[AGENT: {agent_name}] Found destinations: " + ", ".join([d["city"] for d in dests]))
+            log_lines.append(f"[AGENT: {agent_name}] Question: Budget mein kaunsi destinations possible hain?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Popular destinations aur total cost compare ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🏖️",
-                "content": f"Hi! With a budget of ₹{budget} for {travelers} people, I recommend: " + 
-                           ", ".join([f"{d['city']} ({d['reason']})" for d in dests]) + ". Forwarding to Budget Planner."
+                "content": "Jaipur, Goa aur Udaipur options mile."
             }
-            state_mutations = {"dest_list": dests, "total_budget": budget, "num_travelers": travelers, "dur": dur}
+            state_mutations = {"dest_list": ["Jaipur", "Goa", "Udaipur"]}
             
         elif step_num == 1:  # Budget Planning Agent
-            dests = st.session_state.shared_state.get("dest_list", [])
-            log_lines.append(f"[AGENT: {agent_name}] Doing detail costing for travel options. Calling tool SearchCheapFlights()...")
-            
-            # Select destination based on budget
-            selected_dest = dests[-1] if dests else {"city": "Jaipur", "avg_cost": 18000}
-            for d in dests:
-                if d["city"] == "Goa" and budget >= 28000:
-                    selected_dest = d
-                    break
-                    
-            flight_cost = 6000 * travelers
-            hotel_cost = 2500 * (5 if "5" in dur else (3 if "3" in dur else 7))
-            total_est = flight_cost + hotel_cost
-            
-            log_lines.append(f"[AGENT: {agent_name}] Cost details for {selected_dest['city']}: Flights: ₹{flight_cost}, Hotel: ₹{hotel_cost}. Total: ₹{total_est}")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool EstimateHotelCosts()...")
-            
-            if total_est > budget:
-                log_lines.append(f"[AGENT: {agent_name}] [CRITICAL ERROR] Estimated cost ₹{total_est} exceeds maximum budget of ₹{budget}!")
-                chat_msg = {
-                    "sender": agent_name, "avatar": "💸",
-                    "content": f"Cost warning! Goa flights/hotel total ₹{total_est}, which exceeds your ₹{budget} budget for {travelers} people. Let me check if we can switch destination to Jaipur."
-                }
-                # Reroute to Jaipur automatically
-                selected_dest = {"city": "Jaipur", "avg_cost": 18000}
-                flight_cost = 4000 * travelers
-                hotel_cost = 1500 * (5 if "5" in dur else (3 if "3" in dur else 7))
-                total_est = flight_cost + hotel_cost
-                log_lines.append(f"[AGENT: {agent_name}] Rerouting to Jaipur. New cost: ₹{total_est}. Budget matches.")
-                
+            log_lines.append(f"[AGENT: {agent_name}] Question: Sabse best value destination kaunsi hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Travel, stay aur food cost analyze ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "💸",
-                "content": f"I calculated costs for {selected_dest['city']}. Total estimated: ₹{total_est} (Flights: ₹{flight_cost}, Hotel: ₹{hotel_cost}). Fits budget! Forwarding to book packages."
+                "content": "Jaipur selected."
             }
-            state_mutations = {"selected_dest": selected_dest, "flight_cost": flight_cost, "hotel_cost": hotel_cost, "total_est": total_est}
+            state_mutations = {"selected_dest": {"city": "Jaipur", "avg_cost": 18000}, "total_est": 18000}
             
         elif step_num == 2:  # Booking Agent
-            dest = st.session_state.shared_state.get("selected_dest", {"city": "Jaipur"})
-            log_lines.append(f"[AGENT: {agent_name}] Sending ticketing requests to Booking GDS APIs.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool LockFlightSeat()... Seats confirmed.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool PlaceTemporaryHoldHotel()... Hotel reservation verified.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Kya travel aur hotel book kiya ja sakta hai?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Availability check karke booking ki jaati hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🏨",
-                "content": f"Booking complete! Flight tickets and hotel packages pre-booked successfully for your trip to {dest['city']}. Handing to Itinerary Architect."
+                "content": "Travel aur hotel successfully booked."
             }
             state_mutations = {"booking_confirmed": True, "booking_reference": "VAC-5928-HTL"}
             
         elif step_num == 3:  # Itinerary Agent
-            dest = st.session_state.shared_state.get("selected_dest", {"city": "Jaipur"})
-            log_lines.append(f"[AGENT: {agent_name}] Compiling day-by-day vacation itinerary layout.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool GetLocalActivities()... Activities list added.")
-            log_lines.append(f"[AGENT: {agent_name}] Calling tool CompileItineraryPdf()... Visual brochure rendered.")
-            
+            log_lines.append(f"[AGENT: {agent_name}] Question: Day-wise plan kya hoga?")
+            log_lines.append(f"[AGENT: {agent_name}] Logic: Attractions aur travel time optimize kiya jaata hai.")
             chat_msg = {
                 "sender": agent_name, "avatar": "🗺️",
-                "content": f"Itinerary complete! I've designed a day-wise sightseeing plan for {dest['city']}. Your complete travel brochure package has been generated successfully!"
+                "content": "Complete 5-day itinerary generated."
             }
             state_mutations = {"itinerary_ready": True, "itinerary_id": "ITIN-JAIPUR-05"}
             
@@ -1277,239 +965,272 @@ def render_outcome_receipt(scenario_key):
     
     if scenario_key == "doctor":
         status = state.get("booking_status", "Declined")
-        if status == "Confirmed":
-            doc = state.get("selected_doctor", {"name": "Dr. Sharma", "fee": 500})
-            slot = state.get("booking_slot", "10:00 AM")
+        if status == "Confirmed" or status == "Approved":
+            doc_name = "Dr. Sharma"
+            slot = state.get("booking_slot", "6:00 PM")
             illness = state.get("illness", "Fever")
             fee = state.get("fee_charged", 500)
             
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #10b981; max-width:400px; margin:auto;">
+            <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #6366f1; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
                 <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
-                    <div style="font-size:1.4rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Clinic Appointment</div>
+                    <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#4f46e5;">🩺 Clinic Appointment</div>
                     <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Confirmation Voucher</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Patient:</span><span style="font-weight:600;">Arpit Rawat</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Symptom:</span><span style="font-weight:600;">{illness}</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Physician:</span><span style="font-weight:600;">{doc['name']}</span></div>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Patient:</span><span style="font-weight:600; color:#0f172a;">Arpit Rawat</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Symptom:</span><span style="font-weight:600; color:#0f172a;">{illness}</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Physician:</span><span style="font-weight:600; color:#0f172a;">{doc_name}</span></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Time slot:</span><span style="font-weight:600; color:#6366f1;">Tomorrow at {slot}</span></div>
-                    <div style="display:flex; justify-content:space-between; border-top:1px solid #cbd5e1; padding-top:8px; font-weight:700; font-size:1rem;"><span style="color:#0f172a;">Consultation Fee:</span><span>₹{fee}</span></div>
+                    <div style="display:flex; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:6px; font-weight:700;"><span style="color:#64748b;">Consultation Fee:</span><span style="color:#0f172a;">₹{fee}</span></div>
                 </div>
-                <div style="margin-top:16px; border-top:2px dashed #cbd5e1; padding-top:14px; text-align:center;">
-                    <div style="font-family:monospace; font-size:1.8rem; letter-spacing:2px; background:#f1f5f9; padding:4px 0; border-radius:4px; display:inline-block; width:100%; color:#000;">||||||||||||||||||||||||||</div>
-                    <div style="font-size:0.65rem; color:#64748b; margin-top:4px; font-family:monospace;">CL-HOLD-58291</div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Appointment Confirmed</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Reminder Set</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Receipt Generated</div>
+                    </div>
+                </div>
+                <div style="background:#e0e7ff; border-left:4px solid #6366f1; padding:10px 12px; border-radius:6px;">
+                    <div style="font-weight:700; font-size:0.75rem; color:#4338ca; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                    <div style="font-size:0.75rem; color:#312e81; line-height:1.35; font-style:italic;">"System best doctor aur minimum waiting time wala slot automatically select karta hai."</div>
                 </div>
             </div>
             """
         else: # Failure / Declined
             error_reason = state.get("error", "Insufficient Budget")
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #ef4444; max-width:400px; margin:auto; text-align:center;">
+            <div style="background:#fff; color:#0f172a; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #ef4444; max-width:360px; margin:auto; text-align:center; box-sizing:border-box; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
                 <div style="color:#ef4444; font-size:3rem; margin-bottom:10px;">❌</div>
-                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444;">Booking Refused</div>
+                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444; letter-spacing:0.5px;">Booking Refused</div>
                 <div style="font-size:0.85rem; color:#64748b; margin:10px 0 20px 0;">Reason: {error_reason} (Consultation cost exceeds user defined budget limit).</div>
-                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600;">STATUS: TRANSACTION_ABORTED</div>
+                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600; letter-spacing:0.5px;">STATUS: TRANSACTION_ABORTED</div>
             </div>
             """
         return html
-
+    
     elif scenario_key == "library":
         status = state.get("reservation_status", "Denied")
-        if "Limit" in status or "Blocked" in status:
+        if status == "Failed" or "Limit" in status or "Blocked" in status:
             error_reason = state.get("error", "Limit Exceeded")
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #ef4444; max-width:400px; margin:auto; text-align:center;">
+            <div style="background:#fff; color:#0f172a; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #ef4444; max-width:360px; margin:auto; text-align:center; box-sizing:border-box; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
                 <div style="color:#ef4444; font-size:3rem; margin-bottom:10px;">🔐</div>
-                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444;">Loan Blocked</div>
+                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444; letter-spacing:0.5px;">Loan Blocked</div>
                 <div style="font-size:0.85rem; color:#64748b; margin:10px 0 20px 0;">Reason: {error_reason} (Student limit of 3 books already reached).</div>
-                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600;">ACTION REQUIRED: RETURN AN ACTIVE LOAN</div>
+                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600; letter-spacing:0.5px;">ACTION REQUIRED: RETURN AN ACTIVE LOAN</div>
             </div>
             """
         else:
             book = state.get("book_title", "Artificial Intelligence")
             bar = state.get("barcode", "LIB-HOLD-58291")
+            
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #0ea5e9; max-width:400px; margin:auto;">
+            <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #10b981; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
                 <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
-                    <div style="font-size:1.4rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#0ea5e9;">Library Borrow slip</div>
-                    <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Reservation Pass</div>
+                    <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#059669;">📚 Library Borrow Pass</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Reservation Slip</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Student ID:</span><span style="font-weight:600;">#2948</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Target Book:</span><span style="font-weight:600; text-align:right;">{book}</span></div>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Student ID:</span><span style="font-weight:600; color:#0f172a;">#2948</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Target Book:</span><span style="font-weight:600; color:#0f172a; text-align:right;">{book}</span></div>
                     <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Reservation Status:</span><span style="font-weight:700; color:#10b981;">{status}</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Hold Period:</span><span style="font-weight:600;">48 Hours</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Hold Period:</span><span style="font-weight:600; color:#0f172a;">48 Hours</span></div>
                 </div>
-                <div style="margin-top:16px; border-top:2px dashed #cbd5e1; padding-top:14px; text-align:center;">
-                    <div style="font-family:monospace; font-size:1.8rem; letter-spacing:2px; background:#f1f5f9; padding:4px 0; border-radius:4px; display:inline-block; width:100%; color:#000;">* {bar} *</div>
-                    <div style="font-size:0.65rem; color:#64748b; margin-top:4px; font-family:monospace;">PICKUP WINDOW ENDS IN 48 HOURS</div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Book Reserved</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Reservation ID Generated</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Pickup Notification Sent</div>
+                    </div>
+                </div>
+                <div style="background:#ecfdf5; border-left:4px solid #10b981; padding:10px 12px; border-radius:6px;">
+                    <div style="font-weight:700; font-size:0.75rem; color:#047857; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                    <div style="font-size:0.75rem; color:#065f46; line-height:1.35; font-style:italic;">"Yahaan agents sequentially kaam karte hain aur user ko bina manually search kiye book reserve karke dete hain."</div>
                 </div>
             </div>
             """
         return html
-
+        
     elif scenario_key == "flight":
-        if "Failed" in state.get("status", ""):
+        status = state.get("checkin_status", "Failed")
+        if status == "Failed" or "Failed" in state.get("error", ""):
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #ef4444; max-width:400px; margin:auto; text-align:center;">
+            <div style="background:#fff; color:#0f172a; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #ef4444; max-width:360px; margin:auto; text-align:center; box-sizing:border-box; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
                 <div style="color:#ef4444; font-size:3rem; margin-bottom:10px;">⚠️</div>
-                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444;">Check-in Denied</div>
+                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444; letter-spacing:0.5px;">Check-in Denied</div>
                 <div style="font-size:0.85rem; color:#64748b; margin:10px 0 20px 0;">No active flight booking located under PNR AI-720. Verification failed.</div>
-                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600;">REASON: INVALID_PNR_RECORD</div>
+                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600; letter-spacing:0.5px;">REASON: INVALID_PNR_RECORD</div>
             </div>
             """
         else:
             seat = state.get("assigned_seat", "18A")
-            pnr = state.get("pnr", "AI-720")
-            flight = state.get("flight_num", "AI-502")
-            route = state.get("route", "DEL → BOM")
+            
             html = f"""
-            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color:#fff; border-radius:14px; border: 1px solid #334155; padding:20px; width:100%; max-width:400px; margin:auto; box-shadow:0 10px 30px rgba(0,0,0,0.4); display:flex; flex-direction:column; gap:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
-                    <span style="font-family:'Outfit', sans-serif; font-weight:700; font-size:1rem; color:#0ea5e9; display:flex; align-items:center; gap:6px;">✈️ AIRLINE PASS</span>
-                    <span style="font-size:0.65rem; text-transform:uppercase; background-color:rgba(14,165,233,0.15); color:#0ea5e9; padding:2px 8px; border-radius:10px; font-weight:600;">ECONOMY CLASS</span>
+            <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #0284c7; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
+                <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
+                    <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#0284c7;">✈️ Airline Pass</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Boarding Voucher</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
-                    <div style="display:flex; flex-direction:column;">
-                        <span style="font-family:'Outfit', sans-serif; font-size:1.6rem; font-weight:800; line-height:1;">DEL</span>
-                        <span style="font-size:0.7rem; color:#94a3b8;">New Delhi</span>
-                    </div>
-                    <div style="color:#6366f1; font-weight:bold; font-size:1.2rem;">➔</div>
-                    <div style="display:flex; flex-direction:column; text-align:right;">
-                        <span style="font-family:'Outfit', sans-serif; font-size:1.6rem; font-weight:800; line-height:1;">BOM</span>
-                        <span style="font-size:0.7rem; color:#94a3b8;">Mumbai</span>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Flight:</span><span style="font-weight:600; color:#0f172a;">AI-502</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Seat Assignment:</span><span style="font-weight:700; color:#0284c7;">{seat} (Window)</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">PNR:</span><span style="font-weight:600; color:#0f172a; font-family:monospace;">AI-720</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Route:</span><span style="font-weight:600; color:#0f172a;">DEL ➔ BOM</span></div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Check-in Completed</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Seat Assigned</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Boarding Pass Sent</div>
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; background-color:rgba(0,0,0,0.2); border-radius:8px; padding:12px; border:1px solid rgba(255,255,255,0.05); text-align:center;">
-                    <div><span style="font-size:0.6rem; color:#94a3b8; display:block;">FLIGHT</span><span style="font-size:0.85rem; font-weight:700; font-family:monospace;">{flight}</span></div>
-                    <div><span style="font-size:0.6rem; color:#94a3b8; display:block;">SEAT</span><span style="font-size:0.85rem; font-weight:700; font-family:monospace; color:#10b981;">{seat}</span></div>
-                    <div><span style="font-size:0.6rem; color:#94a3b8; display:block;">PNR</span><span style="font-size:0.85rem; font-weight:700; font-family:monospace;">{pnr}</span></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed rgba(255,255,255,0.1); padding-top:12px; margin-top:4px;">
-                    <div>
-                        <div style="font-size:0.75rem; font-weight:700; color:#10b981;">BOARDING ISSUED</div>
-                        <div style="font-size:0.65rem; color:#94a3b8;">Please present barcode at gate.</div>
-                    </div>
-                    <div style="width:46px; height:46px; background:#fff; border-radius:4px; padding:3px;">
-                        <svg viewBox="0 0 24 24" fill="black"><rect x="0" y="0" width="4" height="4"/><rect x="8" y="0" width="4" height="4"/><rect x="16" y="0" width="4" height="4"/><rect x="0" y="8" width="4" height="4"/><rect x="8" y="8" width="4" height="4"/><rect x="16" y="8" width="4" height="4"/><rect x="0" y="16" width="4" height="4"/><rect x="8" y="16" width="4" height="4"/><rect x="16" y="16" width="4" height="4"/></svg>
-                    </div>
+                <div style="background:#e0f2fe; border-left:4px solid #0284c7; padding:10px 12px; border-radius:6px;">
+                    <div style="font-weight:700; font-size:0.75rem; color:#0369a1; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                    <div style="font-size:0.75rem; color:#075985; line-height:1.35; font-style:italic;">"Multi-Agent system poora check-in process automate karta hai aur user ka time bachata hai."</div>
                 </div>
             </div>
             """
         return html
-
+        
     elif scenario_key == "hotel":
-        if "Declined" in state.get("error", ""):
+        if state.get("payment_processed") == False or "Declined" in state.get("error", ""):
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #ef4444; max-width:400px; margin:auto; text-align:center;">
+            <div style="background:#fff; color:#0f172a; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25 rgba(0,0,0,0.08); border-top:6px solid #ef4444; max-width:360px; margin:auto; text-align:center; box-sizing:border-box; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
                 <div style="color:#ef4444; font-size:3rem; margin-bottom:10px;">💳</div>
-                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444;">Extension Aborted</div>
+                <div style="font-size:1.2rem; font-weight:800; text-transform:uppercase; color:#ef4444; letter-spacing:0.5px;">Extension Aborted</div>
                 <div style="font-size:0.85rem; color:#64748b; margin:10px 0 20px 0;">Folio Payment Declined! Credit card transaction failed authorization.</div>
-                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600;">VISIT RECEPTION COUNTER IMMEDIATELY</div>
+                <div style="font-size:0.75rem; background:#fee2e2; color:#ef4444; padding:8px 12px; border-radius:6px; font-weight:600; letter-spacing:0.5px;">VISIT RECEPTION COUNTER IMMEDIATELY</div>
             </div>
             """
         else:
             room = state.get("final_room", "Room 304")
             bill = state.get("total_charged", 4000)
-            status = state.get("status", "Extended")
+            
             html = f"""
-            <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #6366f1; max-width:400px; margin:auto;">
+            <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #ea580c; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
                 <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
-                    <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Hotel Folio Invoice</div>
-                    <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Room Extension Slip</div>
+                    <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#ea580c;">🏨 Hotel Room Extension</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Room Extension Voucher</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Guest Name:</span><span style="font-weight:600;">Arpit Rawat</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Assigned Room:</span><span style="font-weight:600; color:#6366f1;">{room}</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Status:</span><span style="font-weight:700; color:#10b981;">{status}</span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Folio Bill:</span><span style="font-weight:600;">₹{bill} (Charged to Card)</span></div>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Guest Name:</span><span style="font-weight:600; color:#0f172a;">Arpit Rawat</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Assigned Room:</span><span style="font-weight:700; color:#ea580c;">{room}</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Status:</span><span style="font-weight:600; color:#059669;">Stay Extended</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Folio Bill:</span><span style="font-weight:600; color:#0f172a;">₹{bill} (Charged to Card)</span></div>
                 </div>
-                <div style="margin-top:16px; border-top:2px dashed #cbd5e1; padding-top:14px; text-align:center;">
-                    <div style="font-size:0.75rem; font-weight:bold; color:#10b981; background:#d1fae5; display:inline-block; padding:4px 12px; border-radius:6px;">RFID KEY CARD EXTENDED IN PMS</div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Stay Extended</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> New Checkout Date</div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Receipt Generated</div>
+                    </div>
+                </div>
+                <div style="background:#fff7ed; border-left:4px solid #ea580c; padding:10px 12px; border-radius:6px;">
+                    <div style="font-weight:700; font-size:0.75rem; color:#c2410c; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                    <div style="font-size:0.75rem; color:#9a3412; line-height:1.35; font-style:italic;">"Multiple agents booking verification se lekar payment aur confirmation tak ka kaam automate karte hain."</div>
                 </div>
             </div>
             """
         return html
-
+        
     elif scenario_key == "commute":
         driver = state.get("driver_details", "Rajesh Kumar")
         plate = state.get("license_plate", "DL 1CA 4829")
         fare = state.get("cab_fare", 450)
         route = state.get("selected_route", "Route B")
-        dur = state.get("commute_time_mins", 25)
+        
         html = f"""
-        <div style="background:#1e293b; color:#fff; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #eab308; max-width:400px; margin:auto; border:1px solid #334155;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:12px;">
-                <span style="font-weight:700; color:#eab308; font-size:0.95rem;">🚖 CAB DISPATCH VOUCHER</span>
-                <span style="font-size:0.65rem; background:#3f3f46; color:#a1a1aa; padding:2px 6px; border-radius:4px;">CONFIRMED</span>
+        <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #475569; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
+            <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
+                <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#475569;">🚖 Commute Voucher</div>
+                <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Dispatch Slip</div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;">Driver:</span><span style="font-weight:600;">{driver}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;">Vehicle License:</span><span style="font-weight:600; font-family:monospace; color:#eab308;">{plate}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;">Route:</span><span style="font-weight:600;">{route}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#94a3b8;">Transit Duration:</span><span style="font-weight:600; color:#10b981;">{dur} Minutes</span></div>
-                <div style="display:flex; justify-content:space-between; border-top:1px solid #334155; padding-top:8px; font-weight:700; font-size:0.95rem;"><span style="color:#fff;">Fare Charged:</span><span>₹{fare}</span></div>
+            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Driver:</span><span style="font-weight:600; color:#0f172a;">{driver}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Vehicle License:</span><span style="font-weight:700; color:#475569; font-family:monospace;">{plate}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Route Selected:</span><span style="font-weight:600; color:#0f172a;">{route} (Fastest)</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">ETA to Pickup:</span><span style="font-weight:600; color:#059669;">5 Minutes</span></div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:6px; font-weight:700;"><span style="color:#64748b;">Est. Fare:</span><span style="color:#0f172a;">₹{fare}</span></div>
             </div>
-            <div style="margin-top:14px; text-align:center; font-size:0.75rem; color:#94a3b8; background:rgba(234,179,8,0.08); padding:8px; border-radius:6px; border:1px solid rgba(234,179,8,0.15);">
-                ETA to Pickup Point: 5 Minutes
+            <div style="margin-bottom:14px;">
+                <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Best Route Selected</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Cab Booked</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> ETA Shared</div>
+                </div>
+            </div>
+            <div style="background:#f1f5f9; border-left:4px solid #475569; padding:10px 12px; border-radius:6px;">
+                <div style="font-weight:700; font-size:0.75rem; color:#334155; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                <div style="font-size:0.75rem; color:#475569; line-height:1.35; font-style:italic;">"Real-time data ka use karke system travel time ko optimize karta hai."</div>
             </div>
         </div>
         """
         return html
-
+        
     elif scenario_key == "skill":
         goal = state.get("career_goal", "Data Scientist")
-        courses = state.get("recommended_courses", [])
-        weeks = state.get("weeks_to_complete", 12)
         
-        course_items = ""
-        for c in courses:
-            course_items += f"""
-            <div style="margin-bottom:6px; padding:6px; border-radius:4px; background:#f8fafc; font-size:0.75rem;">
-                <div style="font-weight:600; color:#0f172a;">{c['skill']}</div>
-                <div style="color:#64748b; font-size:0.7rem;">{c['course']} ({c['cost']})</div>
-            </div>
-            """
-            
         html = f"""
-        <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #8b5cf6; max-width:400px; margin:auto;">
-            <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:12px;">
-                <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; color:#8b5cf6;">Syllabus Roadmap</div>
-                <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Target: {goal}</div>
+        <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #0f766e; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
+            <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
+                <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#0f766e;">🎯 Career Roadmap</div>
+                <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Syllabus Package</div>
             </div>
-            <div style="font-size:0.85rem; margin-bottom:10px;"><span style="color:#64748b;">Study Milestones:</span></div>
-            {course_items}
-            <div style="border-top:1px solid #cbd5e1; padding-top:8px; margin-top:10px; display:flex; justify-content:space-between; font-size:0.85rem; font-weight:700;">
-                <span>Total Study Duration:</span>
-                <span style="color:#8b5cf6;">~{weeks} Weeks</span>
+            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Target Goal:</span><span style="font-weight:700; color:#0f766e;">{goal}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Core Focus:</span><span style="font-weight:600; color:#0f172a;">Python, SQL & ML</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Duration:</span><span style="font-weight:600; color:#0f172a;">12 Months Roadmap</span></div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Skill Gap Report</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Learning Roadmap</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Progress Tracker</div>
+                </div>
+            </div>
+            <div style="background:#f0fdfa; border-left:4px solid #0f766e; padding:10px 12px; border-radius:6px;">
+                <div style="font-weight:700; font-size:0.75rem; color:#115e59; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                <div style="font-size:0.75rem; color:#134e4a; line-height:1.35; font-style:italic;">"Agents user ke career goal ko achieve karne ke liye personalized roadmap create karte hain."</div>
             </div>
         </div>
         """
         return html
-
+        
     elif scenario_key == "vacation":
-        dest = state.get("selected_dest", {"city": "Jaipur"})
-        flights = state.get("flight_cost", 8000)
-        hotel = state.get("hotel_cost", 10000)
         total = state.get("total_est", 18000)
-        dur = state.get("dur", "5 Days")
         ref = state.get("booking_reference", "VAC-5928-HTL")
         
         html = f"""
-        <div style="background:#fff; color:#0f172a; border-radius:12px; padding:20px; font-family:'Inter', sans-serif; box-shadow:0 10px 20px rgba(0,0,0,0.3); border-top:6px solid #ec4899; max-width:400px; margin:auto;">
+        <div style="background:#ffffff; color:#1e293b; border-radius:16px; padding:22px; font-family:'Outfit', 'Inter', sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.08); border-top:6px solid #db2777; max-width:360px; margin:auto; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; box-sizing:border-box;">
             <div style="text-align:center; border-bottom:2px dashed #cbd5e1; padding-bottom:12px; margin-bottom:14px;">
-                <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; color:#ec4899;">Vacation Itinerary</div>
-                <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Target Destination: {dest['city']} ({dur})</div>
+                <div style="font-size:1.3rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#db2777;">🌴 Vacation Planner</div>
+                <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">Digital Holiday Package</div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Booking Reference:</span><span style="font-weight:600; font-family:monospace;">{ref}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Flights Package:</span><span style="font-weight:600;">₹{flights}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Hotels Package:</span><span style="font-weight:600;">₹{hotel}</span></div>
-                <div style="display:flex; justify-content:space-between; border-top:1px solid #cbd5e1; padding-top:8px; font-weight:700; font-size:1rem; color:#0f172a;"><span style="color:#0f172a;">Total Price:</span><span>₹{total}</span></div>
+            <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem; border-bottom:2px dashed #cbd5e1; padding-bottom:14px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Destination:</span><span style="font-weight:700; color:#db2777;">Jaipur (5 Days)</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Booking Reference:</span><span style="font-weight:600; color:#0f172a; font-family:monospace;">{ref}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Flights & Hotel:</span><span style="font-weight:600; color:#059669;">Pre-booked Confirmed</span></div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:6px; font-weight:700;"><span style="color:#64748b;">Total Price:</span><span style="color:#0f172a;">₹{total}</span></div>
             </div>
-            <div style="margin-top:16px; border-top:2px dashed #cbd5e1; padding-top:14px; text-align:center;">
-                <span style="font-size:0.75rem; font-weight:bold; color:#ec4899; background:#fce7f3; display:inline-block; padding:4px 12px; border-radius:6px;">DAY-WISE ITINERARY GENERATED</span>
+            <div style="margin-bottom:14px;">
+                <div style="font-weight:700; font-size:0.85rem; color:#475569; margin-bottom:8px;">📋 Final Output Checklist:</div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Destination Selected</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Budget Planned</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Bookings Confirmed</div>
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:#059669; font-weight:600;"><span style="font-size:0.95rem;">✔</span> Itinerary Ready</div>
+                </div>
+            </div>
+            <div style="background:#fdf2f8; border-left:4px solid #db2777; padding:10px 12px; border-radius:6px;">
+                <div style="font-weight:700; font-size:0.75rem; color:#9d174d; margin-bottom:2px; display:flex; align-items:center; gap:4px;">💡 Key Takeaway:</div>
+                <div style="font-size:0.75rem; color:#831843; line-height:1.35; font-style:italic;">"Different agents milkar complete vacation planning automatically kar dete hain."</div>
             </div>
         </div>
         """
@@ -2124,11 +1845,11 @@ with col_main_right:
         if step >= 4:
             st.markdown("#### 🎫 Output Generated Artifact")
             html_receipt = render_outcome_receipt(selected_key)
-            components.html(html_receipt, height=310, scrolling=False)
+            components.html(html_receipt, height=450, scrolling=False)
         elif is_failed:
             st.markdown("#### 🎫 Output Generated Artifact")
             html_receipt = render_outcome_receipt(selected_key)
-            components.html(html_receipt, height=220, scrolling=False)
+            components.html(html_receipt, height=300, scrolling=False)
 
     # Tab 2: Structured Prompt Evaluator
     with tab_prompt_eval:
