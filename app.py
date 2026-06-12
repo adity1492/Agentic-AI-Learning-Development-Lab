@@ -237,261 +237,373 @@ st.markdown("""
 # --------------------------------------------------------------------------
 
 SCENARIOS = {
-    "doctor": {
-        "title": "Doctor Appointment Booking Assistant",
-        "icon": "🏥",
-        "desc": "Sequential workflow to check symptoms, find nearby specialists, verify slot availability, handle consultation fees, and schedule reminders.",
-        "default_query": "I have a fever and need to see a doctor tomorrow morning near my location.",
+    "food_ordering": {
+        "title": "Healthy Dinner Ordering",
+        "icon": "🍽️",
+        "desc": "Searches restaurants, filters healthy dinner meals, keeps the total under ₹300, and books after approval.",
+        "default_query": "Order a healthy dinner for tonight under ₹300.",
         "agents": [
             {
-                "name": "Doctor Search Agent",
-                "role": "Search nearby clinics and specialist databases.",
-                "tools": ["SearchClinicsAPI", "MatchSymptoms", "CalculateProximity"],
-                "default_prompt": "Role: Doctor Search Agent\nContext: System helping patient find doctors.\nTask: Filter registered doctors specializing in patient symptoms within a 10km radius.\nConstraints: Output list of matching names and distances only."
+                "name": "Restaurant Search Agent",
+                "role": "Search nearby restaurants and their basic cuisines.",
+                "tools": ["SearchNearbyRestaurants", "CalculateProximityKM"],
+                "default_prompt": "Role: Restaurant Search Agent\nContext: Local food delivery listings.\nTask: Find nearby restaurants and list their distances.\nConstraints: Return matching dining names only. Do not calculate pricing."
             },
             {
-                "name": "Appointment Booking Agent",
-                "role": "Verify schedules and lock appointment slots.",
-                "tools": ["GetAvailabilityList", "ReserveSlotDB"],
-                "default_prompt": "Role: Booking Coordinator\nContext: Booking schedule system.\nTask: Compare patient's requested time (e.g. tomorrow morning) against clinic schedule tables.\nConstraints: Select the earliest available slot. Do not book double appointments."
+                "name": "Dietary Filter Agent",
+                "role": "Analyze menu items to filter for healthy options.",
+                "tools": ["MatchDietProfile", "CalculateCalories"],
+                "default_prompt": "Role: Dietary Health Specialist\nContext: Nutritional tables.\nTask: Inspect available dishes, filter out high-calorie junk foods, and highlight healthy options.\nConstraints: Recommend dishes with protein and low fats only."
             },
             {
-                "name": "Payment Agent",
-                "role": "Verify fee requirements and process transactions.",
-                "tools": ["CheckConsultationFee", "ValidateGatewayStatus"],
-                "default_prompt": "Role: Billing & Payment Validator\nContext: Checking consultation costs.\nTask: Identify fee rates, check if advance deposit is required, and simulate secure gateway validation.\nConstraints: Flag errors if patient budget is insufficient."
+                "name": "Price Guardrail Agent",
+                "role": "Verify prices and keep total cost within user budget.",
+                "tools": ["ComputeTotalCost", "ApplyDiscounts", "VerifyBudgetLimit"],
+                "default_prompt": "Role: Cost Controller\nContext: Checkout calculations (tax + delivery fees).\nTask: Calculate total checkout cost and verify it is under the user-defined budget.\nConstraints: Flag a budget failure if cost exceeds the limit."
             },
             {
-                "name": "Reminder Agent",
-                "role": "Setup push alerts and email notifications.",
-                "tools": ["ScheduleSMSGate", "CreateCalendarInvite"],
-                "default_prompt": "Role: Notification Dispatcher\nContext: Appointment confirmation.\nTask: Generate automated push notifications and email calendar attachments to avoid no-shows.\nConstraints: Set trigger 1 hour before scheduled time."
+                "name": "Order Dispatch Agent",
+                "role": "Process payment, simulate approval, and generate tracking details.",
+                "tools": ["SimulateApproval", "TriggerOrderAPI", "GetTrackingVoucher"],
+                "default_prompt": "Role: Checkout Dispatcher\nContext: Order finalization.\nTask: Ask for final authorization, place the order through the api, and generate tracking info.\nConstraints: Provide confirmation only after order receipt is generated."
             }
         ],
         "parameters": [
-            {"id": "illness", "label": "Patient Symptoms", "type": "select", "options": ["Fever", "Toothache", "Fracture (Emergency)"], "default": "Fever"},
-            {"id": "time", "label": "Preferred Time", "type": "select", "options": ["Morning (09:00 - 12:00)", "Afternoon (13:00 - 17:00)"], "default": "Morning (09:00 - 12:00)"},
-            {"id": "budget", "label": "Max Consultation Budget (₹)", "type": "slider", "options": [200, 1500, 600], "default": 600}
+            {"id": "meal_choice", "label": "Dinner Meal Choice", "type": "select", "options": ["Healthy Quinoa Salad & Juice", "Avocado Toast & Green Tea", "Butter Paneer Masala & Naan (Cheat Meal)"], "default": "Healthy Quinoa Salad & Juice"},
+            {"id": "delivery_tier", "label": "Delivery Priority", "type": "select", "options": ["Standard Delivery (+₹30)", "Priority Express (+₹80)"], "default": "Standard Delivery (+₹30)"},
+            {"id": "budget_limit", "label": "Max Budget (₹)", "type": "slider", "options": [150, 500, 300], "default": 300}
         ]
     },
-    "library": {
-        "title": "Library Book Borrowing Assistant",
+    "grocery_shopping": {
+        "title": "Smart Grocery Shopping",
+        "icon": "🛒",
+        "desc": "Compiles a monthly grocery list, matches store availability, compares prices, and orders the cheapest overall option.",
+        "default_query": "Purchase my monthly grocery list under ₹2500.",
+        "agents": [
+            {
+                "name": "List Compiler Agent",
+                "role": "Compile the monthly essentials grocery checklist.",
+                "tools": ["ListEssentials", "CheckStapleCategories"],
+                "default_prompt": "Role: Household Planner\nContext: Monthly grocery checklists.\nTask: Create a structured list of essentials (rice, flour, oil, salt, sugar) for monthly cooking.\nConstraints: Stick to standard household items only."
+            },
+            {
+                "name": "Inventory Search Agent",
+                "role": "Identify stores carrying all items on the checklist.",
+                "tools": ["QueryStoreInventory", "VerifyInStock"],
+                "default_prompt": "Role: Inventory Checker\nContext: Local store stock tables.\nTask: Search local stores to verify if all items in the checklist are fully in stock.\nConstraints: Return list of matching stores with inventory availability."
+            },
+            {
+                "name": "Price Optimizer Agent",
+                "role": "Compare basket prices across stores to find the cheapest.",
+                "tools": ["ComputeBasketTotals", "ApplyStoreDiscounts"],
+                "default_prompt": "Role: Price Auditor\nContext: Pricing matrices of different outlets.\nTask: Compare the total price of the items across stores and identify the cheapest option.\nConstraints: Recommend the single lowest-cost store. Alert if over budget."
+            },
+            {
+                "name": "Order Scheduler Agent",
+                "role": "Confirm basket booking and schedule delivery slot.",
+                "tools": ["LockStoreOrder", "SelectDeliverySlot", "GenerateInvoice"],
+                "default_prompt": "Role: Booking Dispatcher\nContext: Store checkout.\nTask: Complete the purchase order at the cheapest store, set delivery schedule, and issue invoice.\nConstraints: Highlight delivery date and time clearly."
+            }
+        ],
+        "parameters": [
+            {"id": "basket_type", "label": "Grocery Basket Type", "type": "select", "options": ["Basic Household Staples", "Premium Organic Pantry"], "default": "Basic Household Staples"},
+            {"id": "store_preference", "label": "Preferred Store", "type": "select", "options": ["SuperMart (Cheapest)", "QuickGrocer (Fast)", "OrganicWhole (Premium)"], "default": "SuperMart (Cheapest)"},
+            {"id": "max_budget", "label": "Max Budget (₹)", "type": "slider", "options": [1500, 4000, 2500], "default": 2500}
+        ]
+    },
+    "laundry_pickup": {
+        "title": "Express Laundry Pickup",
+        "icon": "🧺",
+        "desc": "Searches laundry services, checks pickup slots, selects the fastest delivery, and books pickup and delivery.",
+        "default_query": "Schedule a laundry pickup and delivery before tomorrow.",
+        "agents": [
+            {
+                "name": "Laundry Locator Agent",
+                "role": "Find laundry services near the current address.",
+                "tools": ["SearchLaundryServices", "CheckReviews"],
+                "default_prompt": "Role: Laundry Locator\nContext: Local service map coordinates.\nTask: Find laundry and dry cleaning businesses near the user.\nConstraints: List company names and service distance only."
+            },
+            {
+                "name": "Slot Checker Agent",
+                "role": "Inspect available pickup slots for today.",
+                "tools": ["GetAvailableSlots", "LockTemporarySlot"],
+                "default_prompt": "Role: Schedule Inspector\nContext: Booking calendars.\nTask: Query booking calendars for laundry pickup slots available today.\nConstraints: Show immediate slots only."
+            },
+            {
+                "name": "Turnaround Validator Agent",
+                "role": "Select the fastest delivery mode to meet the deadline.",
+                "tools": ["FilterByTurnaround", "CalculateExpressFare"],
+                "default_prompt": "Role: Express Logistics Coordinator\nContext: Delivery turnarounds.\nTask: Check if laundry can be washed and delivered before tomorrow. Charge surcharge if express is needed.\nConstraints: Abort booking if deadline cannot be met."
+            },
+            {
+                "name": "Booking Dispatcher Agent",
+                "role": "Confirm booking and generate service receipt.",
+                "tools": ["ConfirmBookingDB", "SendConfirmationAlert"],
+                "default_prompt": "Role: Final Dispatcher\nContext: Finalizing bookings.\nTask: Complete booking on database, retrieve confirmation code, and send scheduling notification.\nConstraints: Output confirmation and price receipt."
+            }
+        ],
+        "parameters": [
+            {"id": "service_tier", "label": "Service Tier", "type": "select", "options": ["Express Surcharge (+₹150)", "Standard (48-hour turn)"], "default": "Express Surcharge (+₹150)"},
+            {"id": "deadline_tomorrow", "label": "Must Deliver Before Tomorrow", "type": "checkbox", "default": True}
+        ]
+    },
+    "study_planner": {
+        "title": "Custom Study Planner",
         "icon": "📚",
-        "desc": "Orchestrates catalog lookup, copies checking, student reservation permissions, and pickup notification alerts.",
-        "default_query": "I need the book 'Artificial Intelligence' for my assignment.",
+        "desc": "Analyzes available hours, divides subjects, prioritizes difficult topics, generates a timetable, and schedules reminders.",
+        "default_query": "Create an effective weekly study schedule.",
         "agents": [
             {
-                "name": "Book Search Agent",
-                "role": "Verify if the book title exists in library database.",
-                "tools": ["QueryCatalogDB", "CheckISBN"],
-                "default_prompt": "Role: Catalog Search Specialist\nContext: Access to library index.\nTask: Search index tables for the requested book title.\nConstraints: Return exact matches or suggest close titles if not found."
+                "name": "Hour Analyzer Agent",
+                "role": "Assess available hours in the weekly routine.",
+                "tools": ["ReadAvailableHours", "AssessSubjectVolume"],
+                "default_prompt": "Role: Hour Analyst\nContext: Student daily schedules.\nTask: Analyze available free hours across the week to allocate for studying.\nConstraints: Output total weekly study hours capacity."
             },
             {
-                "name": "Availability Agent",
-                "role": "Check physical copies stock status.",
-                "tools": ["CheckShelfStock", "GetReservationsCount"],
-                "default_prompt": "Role: Inventory Inspector\nContext: Physical stock room tracking.\nTask: Query total shelf inventory and subtract active checkouts to check real-time copy count.\nConstraints: If stock is 0, report waitlist count."
+                "name": "Topic Weight Classifier Agent",
+                "role": "Divide subjects and flag difficult topics.",
+                "tools": ["PrioritizeDifficultTopics", "CreateTopicMap"],
+                "default_prompt": "Role: Subject Prioritizer\nContext: Syllabus and exam weightage database.\nTask: Rank subjects by difficulty and assign study weights to focus areas.\nConstraints: Give more time budget to hard subjects."
             },
             {
-                "name": "Reservation Agent",
-                "role": "Reserve book copies for specific student IDs.",
-                "tools": ["HoldCopyDB", "CheckUserBorrowLimit"],
-                "default_prompt": "Role: Reservation Coordinator\nContext: Placing temporary holds on books.\nTask: Lock a copy under the student's ID and mark it reserved for 48 hours.\nConstraints: Verify student limit (max 3 books)."
+                "name": "Timetable Architect Agent",
+                "role": "Draft a weekly timetable grid.",
+                "tools": ["DraftTimetable", "OptimizeStudySpans"],
+                "default_prompt": "Role: Timetable Architect\nContext: Weekly calendar layout.\nTask: Draft a day-wise calendar schedule distributing the topics across study spans.\nConstraints: Include rest breaks and avoid study fatigue."
             },
             {
-                "name": "Notification Agent",
-                "role": "Send reservation confirmation and pickup codes.",
-                "tools": ["DispatchEmail", "GenerateBarcode"],
-                "default_prompt": "Role: Notification Dispatcher\nContext: Book hold confirmation.\nTask: Email pickup slip and temporary shelf code to the student.\nConstraints: Include warning that holds expire in 48 hours."
+                "name": "Reminder Scheduler Agent",
+                "role": "Configure daily notification triggers.",
+                "tools": ["RegisterDailyAlerts", "GenerateCalendarLink"],
+                "default_prompt": "Role: Reminder Coordinator\nContext: Alert scheduling system.\nTask: Set up daily alarm schedules and notification reminders for study sessions.\nConstraints: Enable SMS reminders if selected."
             }
         ],
         "parameters": [
-            {"id": "book_title", "label": "Book Title", "type": "select", "options": ["Artificial Intelligence", "Advanced Python Coding", "Organic Chemistry"], "default": "Artificial Intelligence"},
-            {"id": "in_stock", "label": "Copy Available on Shelf", "type": "checkbox", "default": True},
-            {"id": "borrow_limit", "label": "Student Active Borrows", "type": "slider", "options": [0, 5, 1], "default": 1}
+            {"id": "study_hours_daily", "label": "Daily Study Hours", "type": "slider", "options": [2, 10, 6], "default": 6},
+            {"id": "primary_difficulty", "label": "Subject Difficulty", "type": "select", "options": ["High (Maths & Physics)", "Medium (Chemistry)", "Low (English & Arts)"], "default": "High (Maths & Physics)"},
+            {"id": "sms_reminders", "label": "Enable SMS Reminders", "type": "checkbox", "default": True}
         ]
     },
-    "flight": {
-        "title": "Flight Check-in Assistant",
-        "icon": "✈️",
-        "desc": "Validates ticket status, triggers seat selection matrices, completes digital check-in registration, and generates mobile boarding passes.",
-        "default_query": "My flight is tomorrow. Please complete check-in.",
-        "agents": [
-            {
-                "name": "Flight Verification Agent",
-                "role": "Verify flight booking ID and passport credentials.",
-                "tools": ["QueryPnrDB", "VerifyIdentityStatus"],
-                "default_prompt": "Role: Ticket Validator\nContext: Checking airline ticketing records.\nTask: Fetch PNR data and confirm that flight ticket is active and passenger details are valid.\nConstraints: Reject check-in if booking is cancelled or flight departed."
-            },
-            {
-                "name": "Seat Selection Agent",
-                "role": "Query cabin layouts and assign seats.",
-                "tools": ["GetCabinMap", "LockSeatAPI"],
-                "default_prompt": "Role: Seat Assigner\nContext: Checking passenger preferences.\nTask: Read seat selection matrix, cross-check user preferred seat type, and assign seat.\nConstraints: Assign next best seat if preferred choice is occupied."
-            },
-            {
-                "name": "Check-in Agent",
-                "role": "Execute online check-in registration.",
-                "tools": ["SubmitManifest", "CompleteRegistration"],
-                "default_prompt": "Role: Check-in Coordinator\nContext: Manifest database update.\nTask: Submit passenger boarding manifest and update status to checked-in.\nConstraints: Block check-in if travel document verification is incomplete."
-            },
-            {
-                "name": "Notification Agent",
-                "role": "Generate PDF boarding passes and digital wallets.",
-                "tools": ["GenerateQRCode", "SendSMSAlert"],
-                "default_prompt": "Role: Pass Generator\nContext: Check-in complete.\nTask: Render visual digital boarding pass with seat, gate, PNR details, and QR barcode.\nConstraints: Deliver instantly via SMS or Email attachment."
-            }
-        ],
-        "parameters": [
-            {"id": "ticket_valid", "label": "Ticket Booking Status", "type": "select", "options": ["Confirmed", "Invalid PNR / Cancelled"], "default": "Confirmed"},
-            {"id": "seat_pref", "label": "Seat Preference", "type": "select", "options": ["Window", "Aisle", "Exit Row"], "default": "Window"}
-        ]
-    },
-    "hotel": {
-        "title": "Hotel Room Extension Assistant",
-        "icon": "🏨",
-        "desc": "Checks active reservation status, cross-references room occupancy, processes night extension payments, and extends room keycard access.",
-        "default_query": "I want to stay two more days in my hotel.",
-        "agents": [
-            {
-                "name": "Booking Verification Agent",
-                "role": "Verify active reservation details and check-out dates.",
-                "tools": ["GetStayDetails", "VerifyIdentity"],
-                "default_prompt": "Role: Front Desk Validator\nContext: Hotel PMS systems.\nTask: Confirm guest registration, current room number, and scheduled check-out date.\nConstraints: Flag error if room is not occupied by matching guest name."
-            },
-            {
-                "name": "Room Availability Agent",
-                "role": "Verify if the current room has back-to-back reservations.",
-                "tools": ["CheckRoomInventory", "FindAlternativeRoom"],
-                "default_prompt": "Role: Housekeeper Coordinator\nContext: Checking availability.\nTask: Review room availability schedule to determine if the guest can extend in the same room.\nConstraints: Suggest a room change if room is booked by another guest."
-            },
-            {
-                "name": "Payment Agent",
-                "role": "Calculate extension pricing and bill room folio.",
-                "tools": ["CalculateExtensionCost", "ChargeCreditCard"],
-                "default_prompt": "Role: Hotel Cashier\nContext: Pricing calculations.\nTask: Calculate total price (nights * daily rate) and charge guest's credit card on file.\nConstraints: Provide itemized receipt. Fail if credit card authorization declines."
-            },
-            {
-                "name": "Confirmation Agent",
-                "role": "Update check-out date and extend digital key card validity.",
-                "tools": ["ExtendKeycardAccess", "UpdateCheckOutDatePMS"],
-                "default_prompt": "Role: Room Manager\nContext: Staying duration updates.\nTask: Update checkout date in PMS and push electronic updates to RFID door lock system.\nConstraints: Output success confirmation with the new checkout date."
-            }
-        ],
-        "parameters": [
-            {"id": "room_num", "label": "Current Room Number", "type": "text", "default": "Room 304"},
-            {"id": "extend_days", "label": "Extension Days", "type": "slider", "options": [1, 7, 2], "default": 2},
-            {"id": "room_available", "label": "Current Room Available for Extension", "type": "checkbox", "default": True},
-            {"id": "card_declined", "label": "Simulate Credit Card Decline", "type": "checkbox", "default": False}
-        ]
-    },
-    "commute": {
-        "title": "Daily Commute Management",
+    "vehicle_service": {
+        "title": "Vehicle Service Booking",
         "icon": "🚗",
-        "desc": "Analyzes live city traffic feeds, optimizes route times, auto-books ride-share cabs, and updates passenger ETAs.",
-        "default_query": "How can I reach office on time today?",
+        "desc": "Searches service centers, compares prices and reviews, selects the best value, and books the service.",
+        "default_query": "Service my bike at lowest cost with best rating.",
         "agents": [
             {
-                "name": "Traffic Monitoring Agent",
-                "role": "Query live GPS coordinates and congestion feeds.",
-                "tools": ["GetLiveTrafficAlerts", "QueryIncidentDB"],
-                "default_prompt": "Role: Traffic Analyst\nContext: City road monitoring systems.\nTask: Analyze congestion levels along standard routes from home to office.\nConstraints: Report active blocks, heavy bottlenecks, or accidents."
+                "name": "Workshop Finder Agent",
+                "role": "Search service centers in the delivery radius.",
+                "tools": ["ListServiceCenters", "GetRatings"],
+                "default_prompt": "Role: Workshop Scout\nContext: Business maps.\nTask: Find nearby service centers and collect rating data.\nConstraints: List workshops within a 10km radius only."
             },
             {
-                "name": "Route Optimization Agent",
-                "role": "Calculate fastest alternative pathways.",
-                "tools": ["ComputeShortestPath", "EstimateTravelTime"],
-                "default_prompt": "Role: Route Planner\nContext: GPS navigation optimization.\nTask: Run pathfinder algorithms to bypass traffic blocks and recommend the fastest route.\nConstraints: Present route duration and comparison metrics."
+                "name": "Quote & Rating Analyzer Agent",
+                "role": "Compare quotes and customer reviews.",
+                "tools": ["FetchQuotes", "CalculateValueScore"],
+                "default_prompt": "Role: Quote Auditor\nContext: Price quote catalogs.\nTask: Compare package pricing and reviews to find the best value workshops.\nConstraints: Filter out workshops with less than 4.0 stars."
             },
             {
-                "name": "Transport Booking Agent",
-                "role": "Simulate cab booking API integrations.",
-                "tools": ["RequestCabRide", "ConfirmRideCost"],
-                "default_prompt": "Role: Booking Dispatcher\nContext: Rideshare API access.\nTask: Automatically book a cab on the selected route and lock fare prices.\nConstraints: Match with high-rating drivers nearby."
+                "name": "Value Selector Agent",
+                "role": "Select the best center matching rating and budget bounds.",
+                "tools": ["VerifyBudgetLimits", "ReserveServiceSlot"],
+                "default_prompt": "Role: Value Matcher\nContext: Checking budget limits.\nTask: Check if service cost is within user limits. Choose highest rating within budget.\nConstraints: Flag error if no workshop meets budget."
             },
             {
-                "name": "Notification Agent",
-                "role": "Send cab updates and driver details.",
-                "tools": ["SendSMSAlert", "GetLiveCabLocation"],
-                "default_prompt": "Role: Notification Dispatcher\nContext: Dispatch update.\nTask: Text vehicle type, driver name, license plate, ETA, and real-time live map links.\nConstraints: Keep alert concise."
+                "name": "Service Booking Agent",
+                "role": "Book the service slot and generate invoice receipt.",
+                "tools": ["ConfirmServiceBooking", "GenerateReceiptPDF"],
+                "default_prompt": "Role: Booking Specialist\nContext: Scheduling system.\nTask: Complete the workshop booking registration, set appointment date, and issue receipt.\nConstraints: Output booking slot and receipt details."
             }
         ],
         "parameters": [
-            {"id": "traffic_congestion", "label": "Route A Traffic Level", "type": "select", "options": ["Heavy Congestion (Accident)", "Moderate Traffic", "Light Traffic"], "default": "Heavy Congestion (Accident)"},
-            {"id": "cab_type", "label": "Cab Category Choice", "type": "select", "options": ["Prime Sedan", "Mini Eco", "Auto Rickshaw"], "default": "Prime Sedan"}
+            {"id": "service_pkg", "label": "Service Package", "type": "select", "options": ["General Tuning & Wash", "Full Engine Service & Detailing"], "default": "General Tuning & Wash"},
+            {"id": "min_rating", "label": "Minimum Rating", "type": "select", "options": ["4.5+ Stars", "4.0+ Stars"], "default": "4.5+ Stars"},
+            {"id": "budget_max", "label": "Max Budget (₹)", "type": "slider", "options": [800, 4000, 2000], "default": 2000}
         ]
     },
-    "skill": {
-        "title": "Skill Development Assistant",
-        "icon": "🎯",
-        "desc": "Analyzes career aspirations, checks existing skill sets to define learning gaps, recommends courses, and creates learning check roadmaps.",
-        "default_query": "I want to become a Data Scientist. What should I learn?",
+    "electricity_bill": {
+        "title": "Electricity Bill Payment",
+        "icon": "🧾",
+        "desc": "Fetches pending utility bills, verifies amount and due dates, asks for approval, and processes payment.",
+        "default_query": "Check my pending electricity bill and pay it before the due date.",
         "agents": [
             {
-                "name": "Career Analysis Agent",
-                "role": "Map desired career profiles to industry standards.",
-                "tools": ["FetchCareerProfile", "QuerySkillDatabase"],
-                "default_prompt": "Role: Career Advisor\nContext: Professional development mapping.\nTask: Outline the core technologies and masteries expected in the requested role.\nConstraints: Return standard structured list of competencies."
+                "name": "Bill Retriever Agent",
+                "role": "Retrieve active utility bill details.",
+                "tools": ["QueryUtilityAccount", "RetrieveBillStatus"],
+                "default_prompt": "Role: Bill Fetcher\nContext: Utility database registry.\nTask: Fetch the active bill amount and consumer details.\nConstraints: Return account consumer name and outstanding fee."
             },
             {
-                "name": "Skill Gap Agent",
-                "role": "Evaluate student's background to identify skill gaps.",
-                "tools": ["AssessStudentProfile", "ListMissingSkills"],
-                "default_prompt": "Role: Skill Gap Assessor\nContext: Comparing skill records.\nTask: Contrast career checklist against the student's currently known skills to generate a missing list.\nConstraints: Group gaps into fundamental, advanced, and expert levels."
+                "name": "Bill Auditor Agent",
+                "role": "Validate bill amount details and due dates.",
+                "tools": ["AuditAmount", "VerifyDueDate"],
+                "default_prompt": "Role: Bill Auditor\nContext: Due date validation sheets.\nTask: Audit outstanding fee and verify deadline. Flag dispute if amount looks anomalous.\nConstraints: Terminate payment if bill is disputed."
             },
             {
-                "name": "Course Recommendation Agent",
-                "role": "Find top courses matching the skill gaps.",
-                "tools": ["SearchCourseCatalogs", "MatchCertifications"],
-                "default_prompt": "Role: Curriculum Designer\nContext: Academic recommendations.\nTask: Match the student's skill gap items to specific curated courses and certifications.\nConstraints: Prioritize free hands-on practice labs first."
+                "name": "Gateway Authorization Agent",
+                "role": "Verify wallet balance and simulate approval.",
+                "tools": ["CheckWalletBalance", "ValidateGatewayStatus"],
+                "default_prompt": "Role: Payment Gatekeeper\nContext: Wallet system verification.\nTask: Check user wallet balance and simulate fraud verification checks.\nConstraints: Deny checkout if wallet balance is insufficient."
             },
             {
-                "name": "Progress Tracking Agent",
-                "role": "Generate checking checklist worksheets and reports.",
-                "tools": ["GenerateSyllabusChecklist", "ScheduleWeeklyReminders"],
-                "default_prompt": "Role: Progress Coach\nContext: Study planner setup.\nTask: Package course list into weekly milestone targets and set up progress email alerts.\nConstraints: Provide checking tracker templates."
+                "name": "Payment Processor Agent",
+                "role": "Process transaction and generate invoice receipt.",
+                "tools": ["ExecutePayment", "GenerateReceiptCode"],
+                "default_prompt": "Role: billing specialist\nContext: Bank transaction APIs.\nTask: Execute the bill payment, update payment status in PMS, and return transaction confirmation.\nConstraints: Output receipt code and success status."
             }
         ],
         "parameters": [
-            {"id": "career_goal", "label": "Target Career Goal", "type": "select", "options": ["Data Scientist", "Full-Stack Web Developer", "Cloud Solutions Architect"], "default": "Data Scientist"},
-            {"id": "known_skills", "label": "Skills You Already Know", "type": "select", "options": ["None (Beginner)", "Basic Python & SQL", "JavaScript & HTML5", "Linux & Shell Scripting"], "default": "Basic Python & SQL"}
+            {"id": "bill_status", "label": "Bill Status Mode", "type": "select", "options": ["Regular Bill", "Disputed Bill (Abnormal Charge)"], "default": "Regular Bill"},
+            {"id": "wallet_balance", "label": "Wallet Balance (₹)", "type": "slider", "options": [500, 6000, 3000], "default": 3000},
+            {"id": "due_days_left", "label": "Days until Due Date", "type": "slider", "options": [1, 15, 3], "default": 3}
         ]
     },
-    "vacation": {
-        "title": "Vacation Planning Assistant",
-        "icon": "🌴",
-        "desc": "Filters budget-friendly destinations, runs price checks on flights/hotels, reserves bookings, and designs full day-wise itineraries.",
-        "default_query": "Plan a 5-day vacation under ₹30,000.",
+    "cab_booking": {
+        "title": "Cab Booking Assistant",
+        "icon": "🚕",
+        "desc": "Finds nearby cabs, compares ETA and prices, selects the cheapest option, and completes booking after approval.",
+        "default_query": "Book the cheapest cab to my college.",
         "agents": [
             {
-                "name": "Destination Recommendation Agent",
-                "role": "Filter cities within budget bounds.",
-                "tools": ["FilterDestinationsByPrice", "QueryWeatherAPI"],
-                "default_prompt": "Role: Travel Scout\nContext: Vacation filtering database.\nTask: Suggest list of holiday spots that fit inside the traveler's financial limit.\nConstraints: Recommend 2 top matching locations with average costs."
+                "name": "Cab Finder Agent",
+                "role": "Locate nearby available cabs.",
+                "tools": ["LocateNearbyCabs", "FetchETAs"],
+                "default_prompt": "Role: Cab Locator\nContext: GPS rideshare API.\nTask: Scan nearby vehicles and list available vehicle types with ETAs.\nConstraints: List locations of drivers within 5km radius."
             },
             {
-                "name": "Budget Planning Agent",
-                "role": "Perform detail breakdown on travel and hotel pricing.",
-                "tools": ["EstimateHotelCosts", "SearchCheapFlights"],
-                "default_prompt": "Role: Financial Travel Planner\nContext: Vacation cost calculations.\nTask: Compare flights and hotel prices for matching spots to pick the best value option.\nConstraints: Keep total cost below budget, leaving 15% safety buffer."
+                "name": "Fare Comparison Agent",
+                "role": "Compare fares and travel options.",
+                "tools": ["FetchFares", "IdentifyCheapest"],
+                "default_prompt": "Role: Fare Auditor\nContext: Rideshare pricing chart.\nTask: Compare the pricing of Auto, Mini, and Sedan categories for the target location.\nConstraints: Return fares ordered cheapest to most expensive."
             },
             {
-                "name": "Booking Agent",
-                "role": "Verify availability and pre-book packages.",
-                "tools": ["PlaceTemporaryHoldHotel", "LockFlightSeat"],
-                "default_prompt": "Role: Booking Coordinator\nContext: Ticketing API.\nTask: Pre-book flights and hotel rooms for chosen dates to secure prices.\nConstraints: Complete reservation only if user parameters are met."
+                "name": "Cheapest Selector Agent",
+                "role": "Select the best ride category under waiting and budget constraints.",
+                "tools": ["FilterRideCategory", "ConfirmBookingAPI"],
+                "default_prompt": "Role: Ride Matcher\nContext: Rideshare filters.\nTask: Choose the cheapest category matching maximum wait time constraints.\nConstraints: Abort if ETA exceeds the user's limit."
             },
             {
-                "name": "Itinerary Agent",
-                "role": "Build day-wise visual vacation brochures.",
-                "tools": ["GetLocalActivities", "CompileItineraryPdf"],
-                "default_prompt": "Role: Tour Architect\nContext: Travel guide.\nTask: Construct full day-by-day trip itinerary showing spots, restaurants, and timings.\nConstraints: Keep active travel under 6 hours daily."
+                "name": "Ride Dispatch Agent",
+                "role": "Confirm booking and show driver tracking details.",
+                "tools": ["DispatchVehicle", "GetDriverInfo"],
+                "default_prompt": "Role: Dispatch Coordinator\nContext: Dispatch system database.\nTask: Finalize driver assignment, retrieve license plate and phone number, and output tracking info.\nConstraints: Render driver name and plates clearly."
             }
         ],
         "parameters": [
-            {"id": "budget_val", "label": "Vacation Budget Limit (₹)", "type": "slider", "options": [15000, 80000, 30000], "default": 30000},
-            {"id": "duration", "label": "Vacation Duration", "type": "select", "options": ["3 Days", "5 Days", "7 Days"], "default": "5 Days"},
-            {"id": "travelers", "label": "Number of Travelers", "type": "slider", "options": [1, 5, 2], "default": 2}
+            {"id": "dest_distance", "label": "Destination", "type": "select", "options": ["College (5 km)", "Airport (35 km)"], "default": "College (5 km)"},
+            {"id": "max_wait_minutes", "label": "Max Wait Time (mins)", "type": "slider", "options": [5, 25, 10], "default": 10},
+            {"id": "cab_type_preference", "label": "Preferred Option", "type": "select", "options": ["Cheapest Available", "Sedan Comfort Only"], "default": "Cheapest Available"}
+        ]
+    },
+    "doctor_booking": {
+        "title": "Doctor Appointment Booking",
+        "icon": "🏥",
+        "desc": "Searches nearby doctors, compares appointment waiting times, selects the shortest wait slot, and books appointment.",
+        "default_query": "Get doctor appointment with minimum waiting time.",
+        "agents": [
+            {
+                "name": "Clinic Search Agent",
+                "role": "Scan clinics specializing in relevant symptoms.",
+                "tools": ["SearchClinics", "MatchSpecialty"],
+                "default_prompt": "Role: Clinic Search Agent\nContext: Clinic listings database.\nTask: Find nearby clinics and specialist profiles matching candidate symptoms.\nConstraints: Limit search radius to 15km."
+            },
+            {
+                "name": "Queue Analyzer Agent",
+                "role": "Compare patient queues and waiting times.",
+                "tools": ["FetchQueueWaitTime", "CompareSchedules"],
+                "default_prompt": "Role: Queue Analyst\nContext: Clinic patient queue registries.\nTask: Analyze current active wait times and patient queue lengths for the clinics.\nConstraints: List clinics sorted by shortest wait times."
+            },
+            {
+                "name": "Booking Scheduler Agent",
+                "role": "Hold slot at clinic with shortest wait time.",
+                "tools": ["HoldSlotDB", "CheckFees"],
+                "default_prompt": "Role: Booking Coordinator\nContext: Scheduling system.\nTask: Lock the earliest available slot for the clinic with the shortest queue.\nConstraints: Verify consultation fees fit the budget."
+            },
+            {
+                "name": "Alert Dispatcher Agent",
+                "role": "Finalize booking and set up reminder alerts.",
+                "tools": ["ConfirmBooking", "SendCalendarAlert"],
+                "default_prompt": "Role: Notification Coordinator\nContext: Confirm booking tables.\nTask: Complete booking registration, generate barcode voucher, and set SMS reminders.\nConstraints: Confirm only after validation check passes."
+            }
+        ],
+        "parameters": [
+            {"id": "symptom_urgency", "label": "Symptom Urgency", "type": "select", "options": ["General Consultation (Non-urgent)", "Acute Pain (Urgent Emergency)"], "default": "General Consultation (Non-urgent)"},
+            {"id": "max_distance", "label": "Max Distance Allowed", "type": "select", "options": ["Within 5 km", "Within 15 km"], "default": "Within 5 km"},
+            {"id": "fee_budget", "label": "Max Consultation Fee (₹)", "type": "slider", "options": [300, 1500, 700], "default": 700}
+        ]
+    },
+    "house_cleaning": {
+        "title": "House Cleaning Booking",
+        "icon": "🧹",
+        "desc": "Lists house cleaning providers, compares cost and ratings, and schedules the best value service under budget.",
+        "default_query": "Book house cleaning at lowest cost.",
+        "agents": [
+            {
+                "name": "Cleaning Finder Agent",
+                "role": "List cleaning agencies and customer reviews.",
+                "tools": ["ListCleaningServices", "FetchRatings"],
+                "default_prompt": "Role: Service Finder\nContext: Local listings map.\nTask: Search local cleaning agencies and download review ratings.\nConstraints: Return active listings and ratings only."
+            },
+            {
+                "name": "Quote Estimator Agent",
+                "role": "Calculate pricing estimates for cleaning scopes.",
+                "tools": ["GetCleaningQuotes", "EvaluateValueScore"],
+                "default_prompt": "Role: Quote Estimator\nContext: Cleaning service rate cards.\nTask: Fetch price quotes for the requested cleaning package and room count.\nConstraints: Exclude agencies with customer rating below 4.0 stars."
+            },
+            {
+                "name": "Value Analyst Agent",
+                "role": "Select best value provider under user budget.",
+                "tools": ["LockCleaningSlot", "ValidatePrice"],
+                "default_prompt": "Role: Budget Matcher\nContext: Customer price constraints.\nTask: Select the cheapest available quote under the budget limit.\nConstraints: Abort step if all quotes exceed budget limits."
+            },
+            {
+                "name": "Service Scheduler Agent",
+                "role": "Schedule booking slot and issue service receipt.",
+                "tools": ["ConfirmCleanSchedule", "GenerateReceipt"],
+                "default_prompt": "Role: Scheduler Coordinator\nContext: Cleaning booking database.\nTask: Confirm cleaning appointment, lock calendar date, and dispatch payment invoice receipt.\nConstraints: Output receipt details and timing slot."
+            }
+        ],
+        "parameters": [
+            {"id": "clean_scope", "label": "Cleaning Scope", "type": "select", "options": ["Standard 2-BHK Cleaning", "Deep Home Sanitization"], "default": "Standard 2-BHK Cleaning"},
+            {"id": "customer_rating_min", "label": "Minimum Provider Rating", "type": "select", "options": ["4.2+ Stars", "4.7+ Stars"], "default": "4.2+ Stars"},
+            {"id": "budget_limit", "label": "Max Budget (₹)", "type": "slider", "options": [1000, 5000, 2000], "default": 2000}
+        ]
+    },
+    "sleep_routine": {
+        "title": "Sleep Routine Planner",
+        "icon": "💤",
+        "desc": "Analyzes sleep history, calculates cycle bedtime, designs wind-down routines, and schedules alerts.",
+        "default_query": "Design sleep routine to help me feel refreshed by 7:00 AM.",
+        "agents": [
+            {
+                "name": "Pattern Analyzer Agent",
+                "role": "Evaluate sleep patterns and track deficit.",
+                "tools": ["ReadSleepHistory", "IdentifyDeficits"],
+                "default_prompt": "Role: Sleep Pattern Analyst\nContext: User smart band historical logs.\nTask: Review average sleep durations and pinpoint sleep deficit hours.\nConstraints: Show analysis summaries only."
+            },
+            {
+                "name": "Bedtime Calculator Agent",
+                "role": "Compute optimal bedtime cycles for target wake time.",
+                "tools": ["CalculateSleepCycles", "SetBedtimeAlert"],
+                "default_prompt": "Role: Sleep Cycle Calculator\nContext: 90-minute sleep cycle standards.\nTask: Calculate optimal bedtime to complete targeted sleep cycles before target wake time.\nConstraints: Factor in 15 mins average latency to fall asleep."
+            },
+            {
+                "name": "Routine Designer Agent",
+                "role": "Draft healthy wind-down pre-sleep routines.",
+                "tools": ["DraftRoutine", "FormatWindDownSteps"],
+                "default_prompt": "Role: Sleep Routine Planner\nContext: Sleep hygiene guidelines.\nTask: Outline custom pre-sleep wind-down activities. Recommend adjustment for bad habits like gaming.\nConstraints: Avoid screen time in standard recommendations."
+            },
+            {
+                "name": "Alert Scheduler Agent",
+                "role": "Configure bedtime wind-down alerts and reminders.",
+                "tools": ["ScheduleBedtimeAlerts", "ConnectFitnessTracker"],
+                "default_prompt": "Role: Notification Setup Coordinator\nContext: Phone notification settings.\nTask: Program daily bedtime alerts, turn-off reminders, and morning wake-up alarms.\nConstraints: Output active routine parameters."
+            }
+        ],
+        "parameters": [
+            {"id": "target_wake_time", "label": "Target Wake-up Time", "type": "select", "options": ["06:00 AM", "07:00 AM", "08:00 AM"], "default": "07:00 AM"},
+            {"id": "target_cycles", "label": "Desired Sleep Cycles", "type": "slider", "options": [4, 6, 5], "default": 5},
+            {"id": "pre_sleep_habit", "label": "Pre-sleep Habit", "type": "select", "options": ["Reading & Dim Lights", "Gaming & Social Media (High Alert)"], "default": "Reading & Dim Lights"}
         ]
     }
 }
@@ -1490,6 +1602,9 @@ with st.sidebar:
     scenario_list = list(SCENARIOS.keys())
     scenario_titles = [f"{SCENARIOS[k]['icon']} {SCENARIOS[k]['title']}" for k in scenario_list]
     
+    if st.session_state.selected_scenario not in scenario_list:
+        st.session_state.selected_scenario = scenario_list[0]
+        
     selected_title = st.selectbox(
         "Active Scenario",
         options=scenario_titles,
