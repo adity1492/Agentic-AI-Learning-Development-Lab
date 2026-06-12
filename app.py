@@ -1778,12 +1778,13 @@ def evaluate_rtfc_prompt(prompt_text):
     Evaluates a prompt structured with Role, Context, Task, and Constraints.
     Returns scorecard data and recommendations.
     """
+    st.session_state["groq_error"] = None
     groq_api_key = st.session_state.get("groq_api_key", "").strip() or os.getenv("GROQ_API_KEY", "").strip()
     if groq_api_key:
         try:
             return evaluate_rtfc_prompt_groq(prompt_text, groq_api_key)
         except Exception as e:
-            pass
+            st.session_state["groq_error"] = str(e)
     return evaluate_rtfc_prompt_local(prompt_text)
 
 
@@ -2156,7 +2157,11 @@ with col_main_right:
             # Show overall score
             st.markdown("#### 📊 Prompt Scorecard")
             if report.get("is_local", True):
-                st.warning("⚠️ Live Groq LLM evaluation failed or timed out. Running local quality heuristic fallback evaluation.")
+                error_msg = st.session_state.get("groq_error")
+                if error_msg:
+                    st.warning(f"⚠️ Live Groq LLM evaluation failed: {error_msg}. Running local quality heuristic fallback evaluation.")
+                else:
+                    st.warning("⚠️ Live Groq LLM evaluation failed or timed out. Running local quality heuristic fallback evaluation.")
             else:
                 st.success("🟢 Running live Groq LLM evaluation.")
             col_score, col_status = st.columns([1, 2])
