@@ -1996,8 +1996,7 @@ with col_main_right:
         
         # Build JSON display
         state_dict = st.session_state.shared_state
-        state_json = json.dumps(state_dict, indent=2)
-        st.code(state_json, language="json")
+        st.json(state_dict)
 
     # Tab 4: System Prompts Editor
     with tab_prompt_edit:
